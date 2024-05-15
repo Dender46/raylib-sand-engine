@@ -1,8 +1,43 @@
 {
+    "version": "2.0.0",
     "tasks": [
         {
             "type": "cppbuild",
-            "label": "C/C++: g++.exe build project",
+            "label": "Unix/Linux: clang build project",
+            "command": "clang",
+            "args": [
+                "-std=c++17",
+                "-framework",
+                "CoreVideo",
+                "-framework",
+                "IOKit",
+                "-framework",
+                "Cocoa",
+                "-framework",
+                "GLUT",
+                "-framework",
+                "OpenGL",
+                "${workspaceFolder}/vendor/raylib/lib/libraylib.a",
+                "${workspaceFolder}/src/main.cpp",
+                "-I",
+                "${workspaceFolder}/vendor/raylib/include",
+                "-o",
+                "${workspaceFolder}/build/main",
+            ],
+            "options": {
+                "cwd": "${fileDirname}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "type": "cppbuild",
+            "label": "WIN: g++.exe build project",
             "command": "g++",
             "args": [
                 "-fdiagnostics-color=always",
@@ -30,6 +65,5 @@
                 "isDefault": true
             }
         }
-    ],
-    "version": "2.0.0"
+    ]
 }

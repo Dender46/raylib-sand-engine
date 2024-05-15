@@ -5,11 +5,24 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "(Windows) Launch",
+            "name": "(Unix/Linux lldb) Build and Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/main",
+            "preLaunchTask": "Unix/Linux: clang build project",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "lldb"
+        },
+        {
+            "name": "(Windows) Build and Launch",
             "type": "cppvsdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/main.exe",
-            "preLaunchTask": "C/C++: g++.exe build project",
+            "preLaunchTask": "WIN: g++.exe build project",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
@@ -17,11 +30,11 @@
             "console": "externalTerminal"
         },
         {
-            "name": "(gdb) Build and Launch",
+            "name": "(gdb) Build and Debug",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/main.exe",
-            "preLaunchTask": "C/C++: g++.exe build project",
+            "preLaunchTask": "WIN: g++.exe build project",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
