@@ -104,12 +104,30 @@ int main(void)
                         switch (line[x].type)
                         {
                         case Particle::Type::Sand:
-                            if (y == 0 || GetParticlePtr(x, y-1)->type == Particle::Type::Sand)
-                                break;
-                            GetParticlePtr(x, y-1)->type = Particle::Type::Sand;
-                            GetParticlePtr(x, y-1)->color = GOLD;
-                            line[x].type = Particle::Type::Air;
-                            line[x].color = PURPLE;
+                            if (y != 0)
+                            {
+                                if (GetParticlePtr(x, y-1)->type == Particle::Type::Air)
+                                {
+                                    GetParticlePtr(x, y-1)->type = Particle::Type::Sand;
+                                    GetParticlePtr(x, y-1)->color = GOLD;
+                                    line[x].type = Particle::Type::Air;
+                                    line[x].color = PURPLE;
+                                }
+                                else if (GetParticlePtr(x-1, y-1)->type == Particle::Type::Air)
+                                {
+                                    GetParticlePtr(x-1, y-1)->type = Particle::Type::Sand;
+                                    GetParticlePtr(x-1, y-1)->color = GOLD;
+                                    line[x].type = Particle::Type::Air;
+                                    line[x].color = PURPLE;
+                                }
+                                else if (GetParticlePtr(x+1, y-1)->type == Particle::Type::Air)
+                                {
+                                    GetParticlePtr(x+1, y-1)->type = Particle::Type::Sand;
+                                    GetParticlePtr(x+1, y-1)->color = GOLD;
+                                    line[x].type = Particle::Type::Air;
+                                    line[x].color = PURPLE;
+                                }
+                            }
                             break;
                         
                         default:
