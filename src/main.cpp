@@ -4,7 +4,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
+// #include "raygui.h"
 
 struct TextWithPivot
 {
@@ -35,10 +35,16 @@ public:
     const Vector2 size;
 };
 
+struct Vector2i
+{
+    int x;
+    int y;
+};
+
 int main(void)
 {
     const int screenWidth{ 800 };
-    const int screenHeight{ 450 };
+    const int screenHeight{ 400 };
 
     InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
     SetTargetFPS(60);
@@ -48,14 +54,30 @@ int main(void)
     TextWithPivot YAxisLabel(defaultFont, "Y Axis", {0.5f, 0.0f}, 28);
 
     float rotation{};
+
+    int gridScale{ 8 };
+    Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale };
+    RenderTexture2D canvas{ LoadRenderTexture(gridSize.x, gridSize.y) };
+
     while (!WindowShouldClose())
     {
+        BeginTextureMode(canvas);
+            ClearBackground(PURPLE);
+
+            DrawPixel(0, 0, RED);                        //bot left
+            DrawPixel(gridSize.x-1, 0, GREEN);           //bot right
+            DrawPixel(gridSize.x-1, gridSize.y-1, BLUE); //top right
+            DrawPixel(0, gridSize.y-1, WHITE);           //top left
+        EndTextureMode();
+
         BeginDrawing();
 
             ClearBackground(RAYWHITE);
 
             XAxisLabel.Draw(screenWidth / 2, screenHeight, GRAY);
             YAxisLabel.Draw(0, screenHeight / 2, -90.0f, GRAY);
+
+            DrawTextureEx(canvas.texture, {0, 0}, 0, gridScale, WHITE);
 
         EndDrawing();
     }

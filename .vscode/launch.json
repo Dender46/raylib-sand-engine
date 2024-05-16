@@ -27,7 +27,7 @@
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
-            "console": "externalTerminal"
+            "console": "internalConsole"
         },
         {
             "name": "(gdb) Build and Debug",
