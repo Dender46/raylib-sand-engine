@@ -88,6 +88,13 @@ int main(void)
             GetParticlePtr(mousePos.x / gridScale, gridSize.y - mousePos.y / gridScale)->color = GOLD;
         }
 
+        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+        {
+            auto mousePos{ GetMousePosition() };
+            GetParticlePtr(mousePos.x / gridScale, gridSize.y - mousePos.y / gridScale)->type = Particle::Type::Air;
+            GetParticlePtr(mousePos.x / gridScale, gridSize.y - mousePos.y / gridScale)->color = PURPLE;
+        }
+
         if (++frameCounter > frameLimit)
         {
             frameCounter = 0;
