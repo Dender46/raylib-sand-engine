@@ -44,7 +44,7 @@ struct Vector2i
 
 struct Particle
 {
-    enum class Type { Air, Sand };
+    enum class Type { Air, Sand, Bedrock };
 
     Color color{ PURPLE };
     Type type{ Type::Air };
@@ -59,6 +59,10 @@ constexpr Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale }
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
 Particle* particles;
+
+Particle particleBedrock{ BLACK, Particle::Type::Bedrock };
+Particle particleSand{ GOLD, Particle::Type::Sand };
+Particle particleAir{ PURPLE, Particle::Type::Air };
 
 void HandleMouseButtonInput(MouseButton _mouseBttn);
 
@@ -85,8 +89,16 @@ int main(void)
 
     particles = new Particle[particlesSize]{};
 
-    GetParticlePtr(gridSize.x >> 1, (gridSize.y >> 1))->type = Particle::Type::Sand;
-    GetParticlePtr(gridSize.x >> 1, (gridSize.y >> 1))->color = GOLD;
+    for (int y = 0; y < gridSize.y; y++)
+    {
+        *GetParticlePtr(0, y) = particleBedrock;
+        *GetParticlePtr(gridSize.x-1, y) = particleBedrock;
+    }
+    for (int x = 0; x < gridSize.x; x++)
+    {
+        *GetParticlePtr(x, 0) = particleBedrock;
+        *GetParticlePtr(x, gridSize.y-1) = particleBedrock;
+    }
 
     constexpr uint8_t frameLimit{ 0 };
     uint8_t frameCounter{ frameLimit };
@@ -188,13 +200,9 @@ void HandleMouseButtonInput(MouseButton _mouseBttn)
     Particle newParticle{};
     switch (_mouseBttn)
     {
-        case MOUSE_BUTTON_LEFT:
-            newParticle.type = Particle::Type::Sand;
-            newParticle.color = GOLD;
+        case MOUSE_BUTTON_LEFT: newParticle = particleSand;
             break;
-        case MOUSE_BUTTON_RIGHT:
-            newParticle.type = Particle::Type::Air;
-            newParticle.color = PURPLE;
+        case MOUSE_BUTTON_RIGHT: newParticle = particleAir;
             break;
     }
 
@@ -210,7 +218,11 @@ void HandleMouseButtonInput(MouseButton _mouseBttn)
     {
         for (int x = area.x; x <= area.width; x++)
         {
-            *GetParticlePtr(x, y) = newParticle;
+            auto particle{ GetParticlePtr(x, y) };
+            if (particle->type != Particle::Type::Bedrock)
+            {
+                *particle = newParticle;
+            }
         }
     }
 }
