@@ -53,7 +53,7 @@ struct Particle
 constexpr int screenWidth{ 800 };
 constexpr int screenHeight{ 400 };
 
-constexpr int gridScale{ 2 };
+constexpr int gridScale{ 1 };
 constexpr int brushSize{ 31 };
 constexpr Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale };
 
@@ -64,12 +64,12 @@ void HandleMouseButtonInput(MouseButton _mouseBttn);
 
 Particle* GetParticlePtr(int x, int y)
 {
-    return &particles[x + gridSize.x * y];
+    return &particles[y + gridSize.y * x];
 };
 
 void SwapParticles(int x0, int y0, int x1, int y1)
 {
-    std::swap(particles[x0 + gridSize.x * y0], particles[x1 + gridSize.x * y1]);
+    std::swap(particles[y0 + gridSize.y * x0], particles[y1 + gridSize.y * x1]);
 };
 
 int main(void)
@@ -107,18 +107,18 @@ int main(void)
             frameCounter = 0;
             BeginTextureMode(canvas);
                 ClearBackground(PURPLE);
-                Particle* line{ particles };
-                for (int y = 0; y < gridSize.y; y++)
+                Particle* column{ particles };
+                for (int x = 0; x < gridSize.x; x++)
                 {
-                    for (int x = 0; x < gridSize.x; x++)
+                    for (int y = 0; y < gridSize.y; y++)
                     {
                         // Draw before particle is updated and moved to different place
-                        if (line[x].type != Particle::Type::Air)
+                        if (column[y].type != Particle::Type::Air)
                         {
-                            DrawPixel(x, y, line[x].color);
+                            DrawPixel(x, y, column[y].color);
                         }
 
-                        switch (line[x].type)
+                        switch (column[y].type)
                         {
                         case Particle::Type::Sand:
                             if (y != 0)
@@ -151,7 +151,7 @@ int main(void)
                             break;
                         }
                     }
-                    line += gridSize.x;
+                    column += gridSize.y;
                 }
             EndTextureMode();
         }
