@@ -7,6 +7,7 @@
             "command": "clang",
             "args": [
                 "-std=c++17",
+                "-lstdc++",
                 "-framework",
                 "CoreVideo",
                 "-framework",

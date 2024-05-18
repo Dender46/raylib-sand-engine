@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdio>
+#include <cstdint>
 
 #include "raylib.h"
 #include "raymath.h"
@@ -196,7 +197,7 @@ void HandleMouseButtonInput(MouseButton _mouseBttn)
         return;
     }
 
-    Vector2i center{ mousePos.x / gridScale, gridSize.y - mousePos.y / gridScale };
+    Vector2i center{ (int)mousePos.x / gridScale, gridSize.y - (int)mousePos.y / gridScale };
     Particle newParticle{};
     switch (_mouseBttn)
     {
