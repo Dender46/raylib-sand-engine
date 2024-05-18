@@ -51,21 +51,22 @@ struct Particle
     Type type{ Type::Air };
 };
 
-constexpr int screenWidth{ 800 };
-constexpr int screenHeight{ 400 };
+constexpr int screenWidth{ 1200 };
+constexpr int screenHeight{ 800 };
 
 constexpr int gridScale{ 1 };
 constexpr int brushSize{ 31 };
 constexpr Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale };
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
-Particle* particles;
+Particle* particles{ new Particle[particlesSize]{} };
 
 Particle particleBedrock{ BLACK, Particle::Type::Bedrock };
 Particle particleSand{ GOLD, Particle::Type::Sand };
 Particle particleAir{ PURPLE, Particle::Type::Air };
 
-void HandleMouseButtonInput(MouseButton _mouseBttn);
+
+void HandleMouseButtonInput(MouseButton _mouseBttn, RenderTexture2D* _canvasChange);
 
 Particle* GetParticlePtr(int x, int y)
 {
@@ -87,8 +88,21 @@ int main(void)
     TextWithPivot YAxisLabel(defaultFont, "Y Axis", {0.5f, 0.0f}, 28);
 
     RenderTexture2D canvas{ LoadRenderTexture(gridSize.x, gridSize.y) };
+    RenderTexture2D canvasChanges{ LoadRenderTexture(gridSize.x, gridSize.y) };
 
-    particles = new Particle[particlesSize]{};
+    BeginTextureMode(canvas);
+        ClearBackground(PURPLE);
+    EndTextureMode();
+    BeginTextureMode(canvasChanges);
+        ClearBackground(PURPLE);
+    EndTextureMode();
+
+#if 0
+    for (int i = 0; i < particlesSize; i++)
+    {
+        particles[i] = particleSand;
+    }
+#endif
 
     for (int y = 0; y < gridSize.y; y++)
     {
@@ -105,32 +119,33 @@ int main(void)
     uint8_t frameCounter{ frameLimit };
     while (!WindowShouldClose())
     {
-        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-        {
-            HandleMouseButtonInput(MOUSE_BUTTON_LEFT);
-        }
-
-        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-        {
-            HandleMouseButtonInput(MOUSE_BUTTON_RIGHT);
-        }
-
         // if (++frameCounter > frameLimit)
         {
             frameCounter = 0;
-            BeginTextureMode(canvas);
-                ClearBackground(PURPLE);
+            BeginTextureMode(canvasChanges);
+                ClearBackground(BLANK);
+
+                if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+                {
+                    HandleMouseButtonInput(MOUSE_BUTTON_LEFT, &canvasChanges);
+                }
+
+                if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+                {
+                    HandleMouseButtonInput(MOUSE_BUTTON_RIGHT, &canvasChanges);
+                }
+
                 Particle* column{ particles };
                 for (int x = 0; x < gridSize.x; x++)
                 {
                     for (int y = 0; y < gridSize.y; y++)
                     {
-                        // Draw before particle is updated and moved to different place
-                        if (column[y].type != Particle::Type::Air)
+                        if (column[y].type == Particle::Type::Air)
                         {
-                            DrawPixel(x, y, column[y].color);
+                            continue;
                         }
 
+                        struct PosAndColor{ Color col; int x{ -1 }; int y; } prevAndCurr[2];
                         switch (column[y].type)
                         {
                         case Particle::Type::Sand:
@@ -139,6 +154,8 @@ int main(void)
                                 if (GetParticlePtr(x, y-1)->type == Particle::Type::Air)
                                 {
                                     SwapParticles(x, y, x, y-1);
+                                    prevAndCurr[0] = { GetParticlePtr(x, y)->color, x, y };
+                                    prevAndCurr[1] = { GetParticlePtr(x, y-1)->color, x, y-1 };
                                 }
                                 else if (GetParticlePtr(x-1, y-1)->type == Particle::Type::Air && GetParticlePtr(x+1, y-1)->type == Particle::Type::Air)
                                 {
@@ -146,16 +163,22 @@ int main(void)
                                     int dir{ dirs[GetRandomValue(0, 1)] };
                                     GetParticlePtr(x, y)->color = dir == -1 ? RED : GREEN;
                                     SwapParticles(x, y, x+dir, y-1);
+                                    prevAndCurr[0] = { GetParticlePtr(x, y)->color, x, y };
+                                    prevAndCurr[1] = { GetParticlePtr(x+dir, y-1)->color, x+dir, y-1 };
                                 }
                                 else if (GetParticlePtr(x+1, y-1)->type == Particle::Type::Air)
                                 {
                                     GetParticlePtr(x, y)->color = VIOLET;
                                     SwapParticles(x, y, x+1, y-1);
+                                    prevAndCurr[0] = { GetParticlePtr(x, y)->color, x, y };
+                                    prevAndCurr[1] = { GetParticlePtr(x+1, y-1)->color, x+1, y-1 };
                                 }
                                 else if (GetParticlePtr(x-1, y-1)->type == Particle::Type::Air)
                                 {
                                     GetParticlePtr(x, y)->color = ORANGE;
                                     SwapParticles(x, y, x-1, y-1);
+                                    prevAndCurr[0] = { GetParticlePtr(x, y)->color, x, y };
+                                    prevAndCurr[1] = { GetParticlePtr(x-1, y-1)->color, x-1, y-1 };
                                 }
                             }
                             break;
@@ -163,9 +186,25 @@ int main(void)
                         default:
                             break;
                         }
+
+                        if (prevAndCurr[0].x != -1)
+                        {
+                            DrawPixel(prevAndCurr[0].x, prevAndCurr[0].y, prevAndCurr[0].col);
+                            DrawPixel(prevAndCurr[1].x, prevAndCurr[1].y, prevAndCurr[1].col);
+                        }
                     }
                     column += gridSize.y;
                 }
+            EndTextureMode();
+
+            BeginTextureMode(canvas);
+                // "Pro" version is used to prevent from drawing image flipped on Y axis
+                DrawTexturePro(canvasChanges.texture,
+                    {0, (float)gridSize.y, (float)gridSize.x, (float)-gridSize.y},
+                    {0, 0, (float)gridSize.x, (float)gridSize.y},
+                    {0, 0},
+                    0, WHITE
+                );
             EndTextureMode();
         }
 
@@ -188,7 +227,8 @@ int main(void)
     return 0;
 }
 
-void HandleMouseButtonInput(MouseButton _mouseBttn)
+// Fills in a particle buffer and also draws to "buffer of changes"
+void HandleMouseButtonInput(MouseButton _mouseBttn, RenderTexture2D* _canvasChange)
 {
     auto mousePos{ GetMousePosition() };
     if (mousePos.x <= 0 || mousePos.x >= screenWidth ||
@@ -208,13 +248,15 @@ void HandleMouseButtonInput(MouseButton _mouseBttn)
     }
 
     // Clamp in case if mouse is out of window or close to the edges
+    // Also considering bedrock border
     Rectangle area {
-        Clamp(center.x - brushSize / 2, 0, gridSize.x - 1),
-        Clamp(center.y - brushSize / 2, 0, gridSize.y - 1),
-        Clamp(center.x + brushSize / 2, 0, gridSize.x - 1),
-        Clamp(center.y + brushSize / 2, 0, gridSize.y - 1),
+        Clamp(center.x - brushSize / 2, 1, gridSize.x - 2),
+        Clamp(center.y - brushSize / 2, 1, gridSize.y - 2),
+        Clamp(center.x + brushSize / 2, 1, gridSize.x - 2),
+        Clamp(center.y + brushSize / 2, 1, gridSize.y - 2),
     };
 
+    // Update particle buffer and draw to "buffer of changes"
     for (int y = area.y; y <= area.height; y++)
     {
         for (int x = area.x; x <= area.width; x++)
@@ -223,6 +265,7 @@ void HandleMouseButtonInput(MouseButton _mouseBttn)
             if (particle->type != Particle::Type::Bedrock)
             {
                 *particle = newParticle;
+                DrawPixel(x, y, newParticle.color);
             }
         }
     }
