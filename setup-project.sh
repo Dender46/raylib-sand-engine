@@ -20,6 +20,7 @@ if [ ! -d "vendor/raylib/" ]; then
         rm raylib.tar.gz
 
         echo "===== Raylib: downloading additional headers"
+        echo "      raygui.h"
         cd raylib/include
             curl -o raygui.h -L1 https://github.com/raysan5/raygui/raw/4.0/src/raygui.h
         cd ../..
