@@ -8,34 +8,9 @@
 #define RAYGUI_IMPLEMENTATION
 // #include "raygui.h"
 
-struct TextWithPivot
-{
-public:
-    TextWithPivot(Font _font, const char* _label, Vector2 _pivot, int _fontSize)
-        : label(_label), pivot(_pivot), fontSize(_fontSize), size(MeasureTextEx(_font, _label, _fontSize, 2))
-    {}
-
-    void Draw(int posX, int posY, Color color)
-    {
-        DrawText(label, posX - (size.x * pivot.x), posY - (size.y * pivot.y), fontSize, color);
-    }
-
-    void Draw(int posX, int posY, float rotation, Color color)
-    {
-        Vector2 pos{ (float)posX, (float)posY };
-        Vector2 pivotSizeBased{ 
-            size.x * pivot.x,
-            size.y * pivot.y,
-        };
-        DrawTextPro(defaultFont, label, pos, pivotSizeBased, rotation, fontSize, 1.0f, color);
-    }
-
-    const Font defaultFont{ GetFontDefault() };
-    const char* label;
-    const int fontSize;
-    Vector2 pivot;
-    const Vector2 size;
-};
+#include "textWithPivot.hpp"
+#define MY_BRUSH_IMPLEMENTATION
+#include "brush.hpp"
 
 struct Vector2i
 {
@@ -55,7 +30,6 @@ constexpr int screenWidth{ 1200 };
 constexpr int screenHeight{ 800 };
 
 constexpr int gridScale{ 1 };
-constexpr int brushSize{ 31 };
 constexpr Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale };
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
@@ -66,7 +40,7 @@ Particle particleSand{ GOLD, Particle::Type::Sand };
 Particle particleAir{ PURPLE, Particle::Type::Air };
 
 
-void HandleMouseButtonInput(MouseButton _mouseBttn, RenderTexture2D* _canvasChange);
+void HandleMouseButtonInput(MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
 
 Particle* GetParticlePtr(int x, int y)
 {
@@ -89,6 +63,8 @@ int main(void)
 
     RenderTexture2D canvas{ LoadRenderTexture(gridSize.x, gridSize.y) };
     RenderTexture2D canvasChanges{ LoadRenderTexture(gridSize.x, gridSize.y) };
+
+    Brush brush{ 31, gridScale };
 
     BeginTextureMode(canvas);
         ClearBackground(PURPLE);
@@ -127,12 +103,11 @@ int main(void)
 
                 if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
                 {
-                    HandleMouseButtonInput(MOUSE_BUTTON_LEFT, &canvasChanges);
+                    HandleMouseButtonInput(MOUSE_BUTTON_LEFT, brush, &canvasChanges);
                 }
-
-                if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+                else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
                 {
-                    HandleMouseButtonInput(MOUSE_BUTTON_RIGHT, &canvasChanges);
+                    HandleMouseButtonInput(MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
                 }
 
                 Particle* column{ particles };
@@ -217,6 +192,8 @@ int main(void)
 
             DrawTextureEx(canvas.texture, {0, 0}, 0, gridScale, WHITE);
 
+            brush.DrawOutline(GetMousePosition(), gridScale);
+
             DrawFPS(20, 20);
 
         EndDrawing();
@@ -228,7 +205,7 @@ int main(void)
 }
 
 // Fills in a particle buffer and also draws to "buffer of changes"
-void HandleMouseButtonInput(MouseButton _mouseBttn, RenderTexture2D* _canvasChange)
+void HandleMouseButtonInput(MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange)
 {
     auto mousePos{ GetMousePosition() };
     if (mousePos.x <= 0 || mousePos.x >= screenWidth ||
@@ -250,10 +227,10 @@ void HandleMouseButtonInput(MouseButton _mouseBttn, RenderTexture2D* _canvasChan
     // Clamp in case if mouse is out of window or close to the edges
     // Also considering bedrock border
     Rectangle area {
-        Clamp(center.x - brushSize / 2, 1, gridSize.x - 2),
-        Clamp(center.y - brushSize / 2, 1, gridSize.y - 2),
-        Clamp(center.x + brushSize / 2, 1, gridSize.x - 2),
-        Clamp(center.y + brushSize / 2, 1, gridSize.y - 2),
+        Clamp(center.x - _brush.mSize / 2, 1, gridSize.x - 2),
+        Clamp(center.y - _brush.mSize / 2, 1, gridSize.y - 2),
+        Clamp(center.x + _brush.mSize / 2, 1, gridSize.x - 2),
+        Clamp(center.y + _brush.mSize / 2, 1, gridSize.y - 2),
     };
 
     // Update particle buffer and draw to "buffer of changes"
