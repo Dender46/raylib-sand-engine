@@ -114,6 +114,11 @@ int main(void)
                 HandleMouseButtonInput(MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
             }
 
+            if (float mwDiff{ GetMouseWheelMove() }; mwDiff != 0)
+            {
+                brush.Resize(Clamp(brush.mSize + mwDiff * 5.0f, 1.0f, 100.0f), gridScale);
+            }
+
             Particle* column{ particles };
             for (int x = 0; x < gridSize.x; x++)
             {
