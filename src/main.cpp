@@ -6,7 +6,7 @@
 #include "raylib.h"
 #include "raymath.h"
 #define RAYGUI_IMPLEMENTATION
-// #include "raygui.h"
+#include "raygui.h"
 
 #include "textWithPivot.hpp"
 #define MY_BRUSH_IMPLEMENTATION
@@ -129,7 +129,6 @@ int main(void)
                         continue;
                     }
 
-                    struct PosAndColor{ Color col; int x{ -1 }; int y; } prevAndCurr[2];
                     switch (column[y].type)
                     {
                     case Particle::Type::Sand:
@@ -138,43 +137,34 @@ int main(void)
                             if (GetParticlePtr(x, y-1)->type == Particle::Type::Air)
                             {
                                 SwapParticles(x, y, x, y-1);
-                                prevAndCurr[0] = { GetParticlePtr(x, y)->color, x, y };
-                                prevAndCurr[1] = { GetParticlePtr(x, y-1)->color, x, y-1 };
+                                SetPixelChange(x, y, GetParticlePtr(x, y)->color);
+                                SetPixelChange(x, y-1, GetParticlePtr(x, y-1)->color);
                             }
                             else if (GetParticlePtr(x-1, y-1)->type == Particle::Type::Air && GetParticlePtr(x+1, y-1)->type == Particle::Type::Air)
                             {
                                 int dirs[]{ -1, 1 };
                                 int dir{ dirs[GetRandomValue(0, 1)] };
-                                GetParticlePtr(x, y)->color = dir == -1 ? RED : GREEN;
                                 SwapParticles(x, y, x+dir, y-1);
-                                prevAndCurr[0] = { GetParticlePtr(x, y)->color, x, y };
-                                prevAndCurr[1] = { GetParticlePtr(x+dir, y-1)->color, x+dir, y-1 };
+                                SetPixelChange(x, y, GetParticlePtr(x, y)->color);
+                                SetPixelChange(x+dir, y-1, GetParticlePtr(x+dir, y-1)->color);
                             }
                             else if (GetParticlePtr(x+1, y-1)->type == Particle::Type::Air)
                             {
-                                GetParticlePtr(x, y)->color = VIOLET;
                                 SwapParticles(x, y, x+1, y-1);
-                                prevAndCurr[0] = { GetParticlePtr(x, y)->color, x, y };
-                                prevAndCurr[1] = { GetParticlePtr(x+1, y-1)->color, x+1, y-1 };
+                                SetPixelChange(x, y, GetParticlePtr(x, y)->color);
+                                SetPixelChange(x+1, y-1, GetParticlePtr(x+1, y-1)->color);
                             }
                             else if (GetParticlePtr(x-1, y-1)->type == Particle::Type::Air)
                             {
-                                GetParticlePtr(x, y)->color = ORANGE;
                                 SwapParticles(x, y, x-1, y-1);
-                                prevAndCurr[0] = { GetParticlePtr(x, y)->color, x, y };
-                                prevAndCurr[1] = { GetParticlePtr(x-1, y-1)->color, x-1, y-1 };
+                                SetPixelChange(x, y, GetParticlePtr(x, y)->color);
+                                SetPixelChange(x-1, y-1, GetParticlePtr(x-1, y-1)->color);
                             }
                         }
                         break;
                     
                     default:
                         break;
-                    }
-
-                    if (prevAndCurr[0].x != -1)
-                    {
-                        SetPixelChange(prevAndCurr[0].x, prevAndCurr[0].y, prevAndCurr[0].col);
-                        SetPixelChange(prevAndCurr[1].x, prevAndCurr[1].y, prevAndCurr[1].col);
                     }
                 }
                 column += gridSize.y;
@@ -198,6 +188,18 @@ int main(void)
 
             brush.DrawOutline(GetMousePosition(), gridScale);
 
+            static Color testingColor{ WHITE };
+            static float testingColorBrig{ 0.0f };
+            auto colNormalized{ ColorNormalize(testingColor) };
+            GuiSlider({10.0f, 10.0f, 100.0f, 30.0f}, "r", nullptr, &colNormalized.x, 0.0f, 1.0f);
+            GuiSlider({10.0f, 40.0f, 100.0f, 30.0f}, "g", nullptr, &colNormalized.y, 0.0f, 1.0f);
+            GuiSlider({10.0f, 70.0f, 100.0f, 30.0f}, "b", nullptr, &colNormalized.z, 0.0f, 1.0f);
+            GuiSlider({10.0f, 100.0f, 100.0f, 30.0f}, "a", nullptr, &colNormalized.w, 0.0f, 1.0f);
+            GuiSlider({10.0f, 130.0f, 100.0f, 30.0f}, "brig", nullptr, &testingColorBrig, -1.0f, 1.0f);
+            testingColor = ColorFromNormalized(colNormalized);
+            // GuiSlider({10.0f, 100.0f, 100.0f, 30.0f}, "tint", nullptr, &colNormalized.a, 0.0f, 1.0f);
+            DrawRectangle(10.0f, 160.0f, 100.0f, 100.0f, ColorBrightness(testingColor, testingColorBrig));
+
             DrawFPS(20, 20);
 
         EndDrawing();
@@ -219,12 +221,12 @@ void HandleMouseButtonInput(MouseButton _mouseBttn, const Brush& _brush, RenderT
     }
 
     Vector2i center{ (int)mousePos.x / gridScale, gridSize.y - (int)mousePos.y / gridScale };
-    Particle newParticle{};
+    Particle particleTemplate;
     switch (_mouseBttn)
     {
-        case MOUSE_BUTTON_LEFT: newParticle = particleSand;
+        case MOUSE_BUTTON_LEFT: particleTemplate = particleSand;
             break;
-        case MOUSE_BUTTON_RIGHT: newParticle = particleAir;
+        case MOUSE_BUTTON_RIGHT: particleTemplate = particleAir;
             break;
     }
 
@@ -245,6 +247,13 @@ void HandleMouseButtonInput(MouseButton _mouseBttn, const Brush& _brush, RenderT
             auto particle{ GetParticlePtr(x, y) };
             if (particle->type != Particle::Type::Bedrock)
             {
+                Particle newParticle{ particleTemplate };
+
+                if (particleTemplate.type != Particle::Type::Air && GetRandomValue(0, 100) < 20)
+                {
+                    newParticle.color = ColorBrightness(newParticle.color, GetRandomValue(-10, 0) * 0.01);
+                }
+
                 *particle = newParticle;
                 SetPixelChange(x, y, newParticle.color);
             }
