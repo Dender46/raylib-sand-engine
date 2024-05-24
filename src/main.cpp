@@ -41,7 +41,7 @@ Particle particleSand{ GOLD, Particle::Type::Sand };
 Particle particleAir{ PURPLE, Particle::Type::Air };
 
 
-void HandleMouseButtonInput(MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
+void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
 
 Particle* GetParticlePtr(int x, int y)
 {
@@ -99,20 +99,24 @@ int main(void)
 
     constexpr uint8_t frameLimit{ 0 };
     uint8_t frameCounter{ frameLimit };
+    Vector2 prevMousePosition{ GetMousePosition() };
+
     while (!WindowShouldClose())
     {
         // if (++frameCounter > frameLimit)
         {
             frameCounter = 0;
 
+            auto mousePos{ GetMousePosition() };
             if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
             {
-                HandleMouseButtonInput(MOUSE_BUTTON_LEFT, brush, &canvasChanges);
+                HandleMouseButtonInput(prevMousePosition, mousePos, MOUSE_BUTTON_LEFT, brush, &canvasChanges);
             }
             else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
             {
-                HandleMouseButtonInput(MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
+                HandleMouseButtonInput(prevMousePosition, mousePos, MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
             }
+            prevMousePosition = mousePos;
 
             if (float mwDiff{ GetMouseWheelMove() }; mwDiff != 0)
             {
@@ -191,14 +195,14 @@ int main(void)
             static Color testingColor{ WHITE };
             static float testingColorBrig{ 0.0f };
             auto colNormalized{ ColorNormalize(testingColor) };
-            GuiSlider({10.0f, 10.0f, 100.0f, 30.0f}, "r", nullptr, &colNormalized.x, 0.0f, 1.0f);
-            GuiSlider({10.0f, 40.0f, 100.0f, 30.0f}, "g", nullptr, &colNormalized.y, 0.0f, 1.0f);
-            GuiSlider({10.0f, 70.0f, 100.0f, 30.0f}, "b", nullptr, &colNormalized.z, 0.0f, 1.0f);
-            GuiSlider({10.0f, 100.0f, 100.0f, 30.0f}, "a", nullptr, &colNormalized.w, 0.0f, 1.0f);
-            GuiSlider({10.0f, 130.0f, 100.0f, 30.0f}, "brig", nullptr, &testingColorBrig, -1.0f, 1.0f);
-            testingColor = ColorFromNormalized(colNormalized);
-            // GuiSlider({10.0f, 100.0f, 100.0f, 30.0f}, "tint", nullptr, &colNormalized.a, 0.0f, 1.0f);
-            DrawRectangle(10.0f, 160.0f, 100.0f, 100.0f, ColorBrightness(testingColor, testingColorBrig));
+            //GuiSlider({10.0f, 10.0f, 100.0f, 30.0f}, "r", nullptr, &colNormalized.x, 0.0f, 1.0f);
+            //GuiSlider({10.0f, 40.0f, 100.0f, 30.0f}, "g", nullptr, &colNormalized.y, 0.0f, 1.0f);
+            //GuiSlider({10.0f, 70.0f, 100.0f, 30.0f}, "b", nullptr, &colNormalized.z, 0.0f, 1.0f);
+            //GuiSlider({10.0f, 100.0f, 100.0f, 30.0f}, "a", nullptr, &colNormalized.w, 0.0f, 1.0f);
+            //GuiSlider({10.0f, 130.0f, 100.0f, 30.0f}, "brig", nullptr, &testingColorBrig, -1.0f, 1.0f);
+            //testingColor = ColorFromNormalized(colNormalized);
+            ////GuiSlider({10.0f, 100.0f, 100.0f, 30.0f}, "tint", nullptr, &colNormalized.a, 0.0f, 1.0f);
+            //DrawRectangle(10.0f, 160.0f, 100.0f, 100.0f, ColorBrightness(testingColor, testingColorBrig));
 
             DrawFPS(20, 20);
 
@@ -211,51 +215,58 @@ int main(void)
 }
 
 // Fills in a particle buffer and also draws to "buffer of changes"
-void HandleMouseButtonInput(MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange)
+void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange)
 {
-    auto mousePos{ GetMousePosition() };
-    if (mousePos.x <= 0 || mousePos.x >= screenWidth ||
-        mousePos.y <= 0 || mousePos.y >= screenHeight)
+    if (_currMousePos.x <= 0 || _currMousePos.x >= screenWidth ||
+        _currMousePos.y <= 0 || _currMousePos.y >= screenHeight)
     {
         return;
     }
 
-    Vector2i center{ (int)mousePos.x / gridScale, gridSize.y - (int)mousePos.y / gridScale };
-    Particle particleTemplate;
-    switch (_mouseBttn)
+    int pathSize{ 32 };
+    for (int i = 0; i < pathSize; i++)
     {
-        case MOUSE_BUTTON_LEFT: particleTemplate = particleSand;
-            break;
-        case MOUSE_BUTTON_RIGHT: particleTemplate = particleAir;
-            break;
-    }
+        float lerpT{ (float)i / pathSize };
+        float mouseCenterX{ Lerp(_prevMousePos.x, _currMousePos.x, lerpT) };
+        float mouseCenterY{ Lerp(_prevMousePos.y, _currMousePos.y, lerpT) };
 
-    // Clamp in case if mouse is out of window or close to the edges
-    // Also considering bedrock border
-    Rectangle area {
-        Clamp(center.x - _brush.mSize / 2, 1, gridSize.x - 2),
-        Clamp(center.y - _brush.mSize / 2, 1, gridSize.y - 2),
-        Clamp(center.x + _brush.mSize / 2, 1, gridSize.x - 2),
-        Clamp(center.y + _brush.mSize / 2, 1, gridSize.y - 2),
-    };
-
-    // Update particle buffer and draw to "buffer of changes"
-    for (int y = area.y; y <= area.height; y++)
-    {
-        for (int x = area.x; x <= area.width; x++)
+        Vector2i center{ (int)mouseCenterX / gridScale, gridSize.y - (int)mouseCenterY / gridScale };
+        Particle particleTemplate;
+        switch (_mouseBttn)
         {
-            auto particle{ GetParticlePtr(x, y) };
-            if (particle->type != Particle::Type::Bedrock)
+            case MOUSE_BUTTON_LEFT: particleTemplate = particleSand;
+                break;
+            case MOUSE_BUTTON_RIGHT: particleTemplate = particleAir;
+                break;
+        }
+
+        // Clamp in case if mouse is out of window or close to the edges
+        // Also considering bedrock border
+        Rectangle area {
+            Clamp(center.x - _brush.mSize / 2, 1, gridSize.x - 2),
+            Clamp(center.y - _brush.mSize / 2, 1, gridSize.y - 2),
+            Clamp(center.x + _brush.mSize / 2, 1, gridSize.x - 2),
+            Clamp(center.y + _brush.mSize / 2, 1, gridSize.y - 2),
+        };
+
+        // Update particle buffer and draw to "buffer of changes"
+        for (int y = area.y; y <= area.height; y++)
+        {
+            for (int x = area.x; x <= area.width; x++)
             {
-                Particle newParticle{ particleTemplate };
-
-                if (particleTemplate.type != Particle::Type::Air && GetRandomValue(0, 100) < 20)
+                auto particle{ GetParticlePtr(x, y) };
+                if (particle->type != Particle::Type::Bedrock)
                 {
-                    newParticle.color = ColorBrightness(newParticle.color, GetRandomValue(-10, 0) * 0.01);
-                }
+                    Particle newParticle{ particleTemplate };
 
-                *particle = newParticle;
-                SetPixelChange(x, y, newParticle.color);
+                    if (particleTemplate.type != Particle::Type::Air && GetRandomValue(0, 100) < 20)
+                    {
+                        newParticle.color = ColorBrightness(newParticle.color, GetRandomValue(-10, 0) * 0.01);
+                    }
+
+                    *particle = newParticle;
+                    SetPixelChange(x, y, newParticle.color);
+                }
             }
         }
     }
