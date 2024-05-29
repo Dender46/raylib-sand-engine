@@ -41,6 +41,7 @@
             "label": "WIN: g++.exe build project",
             "command": "g++",
             "args": [
+                "-std=c++20",
                 "-fdiagnostics-color=always",
                 "-g",
                 "${workspaceFolder}\\src\\main.cpp",

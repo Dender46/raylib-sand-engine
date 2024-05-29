@@ -2,6 +2,7 @@
 #include <cstdint>
 
 #include "raylib.h"
+#include "particle.hpp"
 
 struct Brush
 {
@@ -13,6 +14,7 @@ struct Brush
     uint16_t mSize;
     Rectangle mArea;
     Image mImage;
+    Particle::Type mDrawType{ Particle::Type::Sand };
 };
 
 

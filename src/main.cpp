@@ -8,6 +8,8 @@
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 
+#include "types.hpp"
+#include "particle.hpp"
 #include "textWithPivot.hpp"
 #define MY_BRUSH_IMPLEMENTATION
 #include "brush.hpp"
@@ -18,13 +20,6 @@ struct Vector2i
     int y;
 };
 
-struct Particle
-{
-    enum class Type { Air, Sand, Bedrock };
-
-    Color color{ PURPLE };
-    Type type{ Type::Air };
-};
 
 constexpr int screenWidth{ 1200 };
 constexpr int screenHeight{ 800 };
@@ -36,27 +31,38 @@ constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
 Particle* particles{ new Particle[particlesSize]{} };
 Color* pixelChanges{ new Color[particlesSize]{} };
 
-Particle particleBedrock{ BLACK, Particle::Type::Bedrock };
-Particle particleSand{ GOLD, Particle::Type::Sand };
-Particle particleAir{ PURPLE, Particle::Type::Air };
+Particle particleBedrock{ Particle::Type::Bedrock };
+Particle particleSand{ Particle::Type::Sand };
+Particle particleAir{ Particle::Type::Air };
 
 
 void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
+void HandleKeyboardInput(Brush* _brush);
 
 Particle* GetParticlePtr(int x, int y)
 {
     return &particles[y + gridSize.y * x];
 };
 
-void SwapParticles(int x0, int y0, int x1, int y1)
-{
-    std::swap(particles[y0 + gridSize.y * x0], particles[y1 + gridSize.y * x1]);
-};
-
 void SetPixelChange(int x, int y, Color color)
 {
     pixelChanges[x + gridSize.x * y] = color;
 }
+
+void SetParticle(int x, int y, Particle p)
+{
+    *GetParticlePtr(x, y) = p;
+    SetPixelChange(x, y, p.color);
+}
+
+void SwapParticles(int x0, int y0, int x1, int y1)
+{
+    auto& p0{ particles[y0 + gridSize.y * x0] };
+    auto& p1{ particles[y1 + gridSize.y * x1] };
+    std::swap(p0, p1);
+    SetPixelChange(x0, y0, p0.color);
+    SetPixelChange(x1, y1, p1.color);
+};
 
 int main(void)
 {
@@ -88,13 +94,13 @@ int main(void)
 
     for (int y = 0; y < gridSize.y; y++)
     {
-        *GetParticlePtr(0, y) = particleBedrock;
-        *GetParticlePtr(gridSize.x-1, y) = particleBedrock;
+        SetParticle(0, y, particleBedrock);
+        SetParticle(gridSize.x-1, y, particleBedrock);
     }
     for (int x = 0; x < gridSize.x; x++)
     {
-        *GetParticlePtr(x, 0) = particleBedrock;
-        *GetParticlePtr(x, gridSize.y-1) = particleBedrock;
+        SetParticle(x, 0, particleBedrock);
+        SetParticle(x, gridSize.y-1, particleBedrock);
     }
 
     constexpr uint8_t frameLimit{ 0 };
@@ -108,6 +114,7 @@ int main(void)
             frameCounter = 0;
 
             auto mousePos{ GetMousePosition() };
+            HandleKeyboardInput(&brush);
             if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
             {
                 HandleMouseButtonInput(prevMousePosition, mousePos, MOUSE_BUTTON_LEFT, brush, &canvasChanges);
@@ -128,46 +135,37 @@ int main(void)
             {
                 for (int y = 0; y < gridSize.y; y++)
                 {
-                    if (column[y].type == Particle::Type::Air)
-                    {
-                        continue;
-                    }
-
                     switch (column[y].type)
                     {
                     case Particle::Type::Sand:
                         if (y != 0)
                         {
-                            if (GetParticlePtr(x, y-1)->type == Particle::Type::Air)
+                            if (GetParticlePtr(x, y-1)->props == 0)
                             {
                                 SwapParticles(x, y, x, y-1);
-                                SetPixelChange(x, y, GetParticlePtr(x, y)->color);
-                                SetPixelChange(x, y-1, GetParticlePtr(x, y-1)->color);
                             }
-                            else if (GetParticlePtr(x-1, y-1)->type == Particle::Type::Air && GetParticlePtr(x+1, y-1)->type == Particle::Type::Air)
+                            else if (GetParticlePtr(x-1, y-1)->props == 0 && GetParticlePtr(x+1, y-1)->props == 0)
                             {
                                 int dirs[]{ -1, 1 };
                                 int dir{ dirs[GetRandomValue(0, 1)] };
                                 SwapParticles(x, y, x+dir, y-1);
-                                SetPixelChange(x, y, GetParticlePtr(x, y)->color);
-                                SetPixelChange(x+dir, y-1, GetParticlePtr(x+dir, y-1)->color);
                             }
-                            else if (GetParticlePtr(x+1, y-1)->type == Particle::Type::Air)
+                            else if (GetParticlePtr(x+1, y-1)->props == 0)
                             {
                                 SwapParticles(x, y, x+1, y-1);
-                                SetPixelChange(x, y, GetParticlePtr(x, y)->color);
-                                SetPixelChange(x+1, y-1, GetParticlePtr(x+1, y-1)->color);
                             }
-                            else if (GetParticlePtr(x-1, y-1)->type == Particle::Type::Air)
+                            else if (GetParticlePtr(x-1, y-1)->props == 0)
                             {
                                 SwapParticles(x, y, x-1, y-1);
-                                SetPixelChange(x, y, GetParticlePtr(x, y)->color);
-                                SetPixelChange(x-1, y-1, GetParticlePtr(x-1, y-1)->color);
                             }
                         }
                         break;
-                    
+                    case Particle::Type::Air:
+                    case Particle::Type::Rock:
+                    case Particle::Type::Bedrock:
+                        break;
                     default:
+                        assert(false); // Unknown particle type
                         break;
                     }
                 }
@@ -223,6 +221,15 @@ void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseB
         return;
     }
 
+    Particle::Type newParticleType;
+    switch (_mouseBttn)
+    {
+        case MOUSE_BUTTON_LEFT: newParticleType = _brush.mDrawType;
+            break;
+        case MOUSE_BUTTON_RIGHT: newParticleType = Particle::Type::Air;
+            break;
+    }
+
     int pathSize{ 32 };
     for (int i = 0; i < pathSize; i++)
     {
@@ -231,14 +238,6 @@ void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseB
         float mouseCenterY{ Lerp(_prevMousePos.y, _currMousePos.y, lerpT) };
 
         Vector2i center{ (int)mouseCenterX / gridScale, gridSize.y - (int)mouseCenterY / gridScale };
-        Particle particleTemplate;
-        switch (_mouseBttn)
-        {
-            case MOUSE_BUTTON_LEFT: particleTemplate = particleSand;
-                break;
-            case MOUSE_BUTTON_RIGHT: particleTemplate = particleAir;
-                break;
-        }
 
         // Clamp in case if mouse is out of window or close to the edges
         // Also considering bedrock border
@@ -254,20 +253,25 @@ void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseB
         {
             for (int x = area.x; x <= area.width; x++)
             {
-                auto particle{ GetParticlePtr(x, y) };
-                if (particle->type != Particle::Type::Bedrock)
+                auto particleTarget{ GetParticlePtr(x, y) };
+                if (particleTarget->props & (u16)Particle::Props::NonDestruct)
                 {
-                    Particle newParticle{ particleTemplate };
-
-                    if (particleTemplate.type != Particle::Type::Air && GetRandomValue(0, 100) < 20)
-                    {
-                        newParticle.color = ColorBrightness(newParticle.color, GetRandomValue(-10, 0) * 0.01);
-                    }
-
-                    *particle = newParticle;
-                    SetPixelChange(x, y, newParticle.color);
+                    continue;
                 }
+                SetParticle(x, y, { newParticleType });
             }
         }
+    }
+}
+
+void HandleKeyboardInput(Brush* _brush)
+{
+    if (IsKeyPressed(KEY_ONE))
+    {
+        _brush->mDrawType = Particle::Type::Sand;
+    }
+    if (IsKeyPressed(KEY_TWO))
+    {
+        _brush->mDrawType = Particle::Type::Rock;
     }
 }
