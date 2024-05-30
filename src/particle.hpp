@@ -15,10 +15,10 @@ struct Particle
         Bedrock,
         COUNT
     };
-    enum class Props : u16 {
+    enum Props : u16 {
         None        = 0,
         Static      = 1 << 0,
-        Sandy       = 1 << 1,
+        Solid       = 1 << 1,
         Liquid      = 1 << 2,
         NonDestruct = 1 << 3,
     };
@@ -28,37 +28,43 @@ struct Particle
 
     Color color{ PURPLE };
     u16 props{ 0 };
+    i8 velX{ 0 };
+    i8 velY{ 0 };
     Type type{ Type::Air };
 };
 
-constexpr u16 particlePropertiesMap[] = {
-    /*Air*/         0,
-    /*Sand*/        (0 | (u16)Particle::Props::Sandy),
-    /*Rock*/        (0 | (u16)Particle::Props::Static),
-    /*Bedrock*/     (0 | (u16)Particle::Props::Static | (u16)Particle::Props::NonDestruct),
-};
+namespace ParticlePropertiesMap
+{
+    using enum Particle::Props;
+    constexpr u16 map[] = {
+        /*Air*/         0,
+        /*Sand*/        (0 | Solid),
+        /*Rock*/        (0 | Static | Solid),
+        /*Bedrock*/     (0 | Static | Solid | NonDestruct),
+    };
 
-static_assert(
-    sizeof(particlePropertiesMap) / sizeof(Particle::Props)
-    == // Particle types and props are mismatched
-    (u32)Particle::Type::COUNT
-);
+    static_assert(
+        sizeof(map) / sizeof(Particle::Props)
+        == // Particle types and props are mismatched
+        (u32)Particle::Type::COUNT
+    );
+}
 
 Particle::Particle(Particle::Type _type)
-    : props{particlePropertiesMap[(u64)_type]}, type{_type}
+    : props{ParticlePropertiesMap::map[(u64)_type]}, type{_type}
 {
     switch (type)
     {
-    case Particle::Type::Air:
+    case Type::Air:
         color = PURPLE;
         break;
-    case Particle::Type::Sand:
+    case Type::Sand:
         color = ColorBrightness(GOLD, GetRandomValue(-10, 0) * 0.01);
         break;
-    case Particle::Type::Rock:
+    case Type::Rock:
         color = GRAY;
         break;
-    case Particle::Type::Bedrock:
+    case Type::Bedrock:
         color = BLACK;
         break;
     default:

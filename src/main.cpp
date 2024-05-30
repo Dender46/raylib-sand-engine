@@ -22,9 +22,9 @@ struct Vector2i
 
 
 constexpr int screenWidth{ 1200 };
-constexpr int screenHeight{ 800 };
+constexpr int screenHeight{ 600 };
 
-constexpr int gridScale{ 1 };
+constexpr int gridScale{ 12 };
 constexpr Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale };
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
@@ -35,9 +35,12 @@ Particle particleBedrock{ Particle::Type::Bedrock };
 Particle particleSand{ Particle::Type::Sand };
 Particle particleAir{ Particle::Type::Air };
 
+RenderTexture2D canvas;
+RenderTexture2D canvasChanges;
 
 void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
 void HandleKeyboardInput(Brush* _brush);
+void ProcessParticle(const Particle& particle, u16 x, u16 y);
 
 Particle* GetParticlePtr(int x, int y)
 {
@@ -64,19 +67,10 @@ void SwapParticles(int x0, int y0, int x1, int y1)
     SetPixelChange(x1, y1, p1.color);
 };
 
-int main(void)
+void Init()
 {
-    InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
-    SetTargetFPS(60);
-
-    Font defaultFont{ GetFontDefault() };
-    TextWithPivot XAxisLabel(defaultFont, "X Axis", {0.5f, 1.0f}, 28);
-    TextWithPivot YAxisLabel(defaultFont, "Y Axis", {0.5f, 0.0f}, 28);
-
-    RenderTexture2D canvas{ LoadRenderTexture(gridSize.x, gridSize.y) };
-    RenderTexture2D canvasChanges{ LoadRenderTexture(gridSize.x, gridSize.y) };
-
-    Brush brush{ 31, gridScale };
+    canvas = LoadRenderTexture(gridSize.x, gridSize.y);
+    canvasChanges = LoadRenderTexture(gridSize.x, gridSize.y);
 
     BeginTextureMode(canvas);
         ClearBackground(PURPLE);
@@ -86,10 +80,9 @@ int main(void)
     EndTextureMode();
 
 #if 0
-    for (int i = 0; i < particlesSize; i++)
-    {
-        particles[i] = particleSand;
-    }
+    for (int x = 0; x < gridSize.x; x++)
+        for (int y = 0; y < gridSize.y; y++)
+            SetParticle(x, y, { Particle::Type::Sand });
 #endif
 
     for (int y = 0; y < gridSize.y; y++)
@@ -102,15 +95,38 @@ int main(void)
         SetParticle(x, 0, particleBedrock);
         SetParticle(x, gridSize.y-1, particleBedrock);
     }
+}
 
-    constexpr uint8_t frameLimit{ 0 };
-    uint8_t frameCounter{ frameLimit };
+int main(void)
+{
+    InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
+    SetTargetFPS(60);
+    Init();
+
+    //Font defaultFont{ GetFontDefault() };
+    //TextWithPivot XAxisLabel(defaultFont, "X Axis", {0.5f, 1.0f}, 28);
+    //TextWithPivot YAxisLabel(defaultFont, "Y Axis", {0.5f, 0.0f}, 28);
+
+    Brush brush{ 1, gridScale };
+
+    constexpr u8 frameLimit{ 0 };
+    u8 frameCounter{ frameLimit };
     Vector2 prevMousePosition{ GetMousePosition() };
 
+    SetParticle(gridSize.x / 2 + 20, gridSize.y / 2  + 30, { Particle::Type::Sand });
+    Particle* target{ GetParticlePtr(gridSize.x / 2, gridSize.y / 2) };
+    target->velX = 1;
+    target->velY = 1;
+
+    u8 stepCount{ 1 };
     while (!WindowShouldClose())
     {
-        // if (++frameCounter > frameLimit)
+        if (IsKeyPressed(KEY_S))
+            stepCount++;
+
+        // if (stepCount > 0)
         {
+            stepCount = 0;
             frameCounter = 0;
 
             auto mousePos{ GetMousePosition() };
@@ -131,43 +147,12 @@ int main(void)
             }
 
             Particle* column{ particles };
-            for (int x = 0; x < gridSize.x; x++)
+            for (u16 x{0}; x < gridSize.x; x++)
             {
-                for (int y = 0; y < gridSize.y; y++)
+                for (u16 y{0}; y < gridSize.y; y++)
                 {
-                    switch (column[y].type)
-                    {
-                    case Particle::Type::Sand:
-                        if (y != 0)
-                        {
-                            if (GetParticlePtr(x, y-1)->props == 0)
-                            {
-                                SwapParticles(x, y, x, y-1);
-                            }
-                            else if (GetParticlePtr(x-1, y-1)->props == 0 && GetParticlePtr(x+1, y-1)->props == 0)
-                            {
-                                int dirs[]{ -1, 1 };
-                                int dir{ dirs[GetRandomValue(0, 1)] };
-                                SwapParticles(x, y, x+dir, y-1);
-                            }
-                            else if (GetParticlePtr(x+1, y-1)->props == 0)
-                            {
-                                SwapParticles(x, y, x+1, y-1);
-                            }
-                            else if (GetParticlePtr(x-1, y-1)->props == 0)
-                            {
-                                SwapParticles(x, y, x-1, y-1);
-                            }
-                        }
-                        break;
-                    case Particle::Type::Air:
-                    case Particle::Type::Rock:
-                    case Particle::Type::Bedrock:
-                        break;
-                    default:
-                        assert(false); // Unknown particle type
-                        break;
-                    }
+                    auto& particle{ column[y] };
+                    ProcessParticle(particle, x, y);
                 }
                 column += gridSize.y;
             }
@@ -182,9 +167,6 @@ int main(void)
         BeginDrawing();
 
             ClearBackground(RAYWHITE);
-
-            XAxisLabel.Draw(screenWidth / 2, screenHeight, GRAY);
-            YAxisLabel.Draw(0, screenHeight / 2, -90.0f, GRAY);
 
             DrawTextureEx(canvas.texture, {0, 0}, 0, gridScale, WHITE);
 
@@ -273,5 +255,42 @@ void HandleKeyboardInput(Brush* _brush)
     if (IsKeyPressed(KEY_TWO))
     {
         _brush->mDrawType = Particle::Type::Rock;
+    }
+}
+
+void ProcessParticle(const Particle& particle, u16 x, u16 y)
+{
+    switch (particle.type)
+    {
+    case Particle::Type::Sand:
+        if (y != 0)
+        {
+            if (GetParticlePtr(x, y-1)->props == 0)
+            {
+                SwapParticles(x, y, x, y-1);
+            }
+            else if (GetParticlePtr(x-1, y-1)->props == 0 && GetParticlePtr(x+1, y-1)->props == 0)
+            {
+                int dirs[]{ -1, 1 };
+                int dir{ dirs[GetRandomValue(0, 1)] };
+                SwapParticles(x, y, x+dir, y-1);
+            }
+            else if (GetParticlePtr(x+1, y-1)->props == 0)
+            {
+                SwapParticles(x, y, x+1, y-1);
+            }
+            else if (GetParticlePtr(x-1, y-1)->props == 0)
+            {
+                SwapParticles(x, y, x-1, y-1);
+            }
+        }
+        break;
+    case Particle::Type::Air:
+    case Particle::Type::Rock:
+    case Particle::Type::Bedrock:
+        break;
+    default:
+        assert(false); // Unknown particle type
+        break;
     }
 }
