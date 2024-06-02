@@ -24,7 +24,7 @@ struct Vector2i
 constexpr int screenWidth{ 1200 };
 constexpr int screenHeight{ 600 };
 
-constexpr int gridScale{ 12 };
+constexpr int gridScale{ 4 };
 constexpr Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale };
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
@@ -97,6 +97,8 @@ void Init()
     }
 }
 
+
+
 int main(void)
 {
     InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
@@ -124,13 +126,13 @@ int main(void)
         if (IsKeyPressed(KEY_S))
             stepCount++;
 
+        HandleKeyboardInput(&brush);
         // if (stepCount > 0)
         {
             stepCount = 0;
             frameCounter = 0;
 
             auto mousePos{ GetMousePosition() };
-            HandleKeyboardInput(&brush);
             if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
             {
                 HandleMouseButtonInput(prevMousePosition, mousePos, MOUSE_BUTTON_LEFT, brush, &canvasChanges);
@@ -252,7 +254,11 @@ void HandleKeyboardInput(Brush* _brush)
     {
         _brush->mDrawType = Particle::Type::Sand;
     }
-    if (IsKeyPressed(KEY_TWO))
+    else if (IsKeyPressed(KEY_TWO))
+    {
+        _brush->mDrawType = Particle::Type::Water;
+    }
+    else if (IsKeyPressed(KEY_THREE))
     {
         _brush->mDrawType = Particle::Type::Rock;
     }
@@ -265,15 +271,26 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
     case Particle::Type::Sand:
         if (y != 0)
         {
-            if (GetParticlePtr(x, y-1)->props == 0)
+            if (auto p{ GetParticlePtr(x, y-1)->props}; (p & Particle::Props::Liquid) || !p)
             {
                 SwapParticles(x, y, x, y-1);
             }
-            else if (GetParticlePtr(x-1, y-1)->props == 0 && GetParticlePtr(x+1, y-1)->props == 0)
+            else if (auto p{GetParticlePtr(x-1, y-1)->props}; (p & Particle::Props::Liquid) || !p)
             {
-                int dirs[]{ -1, 1 };
-                int dir{ dirs[GetRandomValue(0, 1)] };
-                SwapParticles(x, y, x+dir, y-1);
+                SwapParticles(x, y, x-1, y-1);
+            }
+            else if (auto p{GetParticlePtr(x+1, y-1)->props}; (p & Particle::Props::Liquid) || !p)
+            {
+                SwapParticles(x, y, x+1, y-1);
+            }
+        }
+        break;
+    case Particle::Type::Water:
+        if (y != 0)
+        {
+            if (GetParticlePtr(x, y-1)->props == 0)
+            {
+                SwapParticles(x, y, x, y-1);
             }
             else if (GetParticlePtr(x+1, y-1)->props == 0)
             {
@@ -282,6 +299,19 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
             else if (GetParticlePtr(x-1, y-1)->props == 0)
             {
                 SwapParticles(x, y, x-1, y-1);
+            }
+            else if (GetParticlePtr(x-1, y)->props == 0 && GetParticlePtr(x+1, y)->props == 0)
+            {
+                i16 dir{ ((i16[]){-1, 1})[GetRandomValue(0, 1)] };
+                SwapParticles(x, y, x+dir, y);
+            }
+            else if (GetParticlePtr(x-1, y)->props == 0)
+            {
+                SwapParticles(x, y, x-1, y);
+            }
+            else if (GetParticlePtr(x+1, y)->props == 0)
+            {
+                SwapParticles(x, y, x+1, y);
             }
         }
         break;

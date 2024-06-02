@@ -11,6 +11,7 @@ struct Particle
     enum class Type : u8 {
         Air,
         Sand,
+        Water,
         Rock,
         Bedrock,
         COUNT
@@ -38,9 +39,10 @@ namespace ParticlePropertiesMap
     using enum Particle::Props;
     constexpr u16 map[] = {
         /*Air*/         0,
-        /*Sand*/        (0 | Solid),
-        /*Rock*/        (0 | Static | Solid),
-        /*Bedrock*/     (0 | Static | Solid | NonDestruct),
+        /*Sand*/        Solid,
+        /*Sand*/        Liquid,
+        /*Rock*/        Static | Solid,
+        /*Bedrock*/     Static | Solid | NonDestruct,
     };
 
     static_assert(
@@ -60,6 +62,9 @@ Particle::Particle(Particle::Type _type)
         break;
     case Type::Sand:
         color = ColorBrightness(GOLD, GetRandomValue(-10, 0) * 0.01);
+        break;
+    case Type::Water:
+        color = ColorBrightness(BLUE, GetRandomValue(-10, 0) * 0.01);;
         break;
     case Type::Rock:
         color = GRAY;
