@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "*.config": "json",
-        "cmath": "cpp"
+        "cmath": "cpp",
+        "iostream": "cpp"
     }
 }

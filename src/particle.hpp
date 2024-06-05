@@ -52,7 +52,7 @@ namespace ParticlePropertiesMap
     );
 }
 
-Particle::Particle(Particle::Type _type)
+inline Particle::Particle(Particle::Type _type)
     : props{ParticlePropertiesMap::map[(u64)_type]}, type{_type}
 {
     switch (type)

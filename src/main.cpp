@@ -5,14 +5,14 @@
 
 #include "raylib.h"
 #include "raymath.h"
-#define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
+// #define RAYGUI_IMPLEMENTATION
+// #include "raygui.h"
 
 #include "types.hpp"
 #include "particle.hpp"
 #include "textWithPivot.hpp"
-#define MY_BRUSH_IMPLEMENTATION
 #include "brush.hpp"
+#include "profiller.hpp"
 
 struct Vector2i
 {
@@ -24,7 +24,7 @@ struct Vector2i
 constexpr int screenWidth{ 1200 };
 constexpr int screenHeight{ 600 };
 
-constexpr int gridScale{ 4 };
+constexpr int gridScale{ 1 };
 constexpr Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale };
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
@@ -120,9 +120,14 @@ int main(void)
     target->velX = 1;
     target->velY = 1;
 
+    Profiller::globalProfiller.BeginProfilling(" ::::: PROFILLER ::::: ");
+
+    u64 frameCount{ 0 };
     u8 stepCount{ 1 };
     while (!WindowShouldClose())
     {
+        TIME_BANDWIDTH("Main loop", 0);
+
         if (IsKeyPressed(KEY_S))
             stepCount++;
 
@@ -161,13 +166,16 @@ int main(void)
 
             UpdateTexture(canvasChanges.texture, pixelChanges);
 
+            {
+            TIME_BANDWIDTH("Update canvas", 0);
             BeginTextureMode(canvas);
                 DrawTexture(canvasChanges.texture, 0, 0, WHITE);
             EndTextureMode();
+            }
         }
 
         BeginDrawing();
-
+        {
             ClearBackground(RAYWHITE);
 
             DrawTextureEx(canvas.texture, {0, 0}, 0, gridScale, WHITE);
@@ -187,9 +195,11 @@ int main(void)
             //DrawRectangle(10.0f, 160.0f, 100.0f, 100.0f, ColorBrightness(testingColor, testingColorBrig));
 
             DrawFPS(20, 20);
-
+        }
         EndDrawing();
     }
+
+    Profiller::globalProfiller.EndProfilling();
 
     CloseWindow();
 
@@ -204,6 +214,8 @@ void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseB
     {
         return;
     }
+
+    TIME_FUNCTION;
 
     Particle::Type newParticleType;
     switch (_mouseBttn)
@@ -266,6 +278,7 @@ void HandleKeyboardInput(Brush* _brush)
 
 void ProcessParticle(const Particle& particle, u16 x, u16 y)
 {
+    TIME_FUNCTION;
     switch (particle.type)
     {
     case Particle::Type::Sand:
