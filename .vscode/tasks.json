@@ -4,9 +4,9 @@
         {
             "type": "cppbuild",
             "label": "Unix/Linux: clang build project",
-            "command": "clang",
+            "command": "g++-14",
             "args": [
-                "-std=c++17",
+                "-std=c++20",
                 "-lstdc++",
                 "-framework",
                 "CoreVideo",
