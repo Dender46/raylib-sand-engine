@@ -2,6 +2,7 @@
     "files.associations": {
         "*.config": "json",
         "cmath": "cpp",
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "cassert": "cpp"
     }
 }

@@ -12,6 +12,7 @@
 #include "particle.hpp"
 #include "textWithPivot.hpp"
 #include "brush.hpp"
+#define PROFILLER 0
 #include "profiller.hpp"
 
 struct Vector2i
@@ -24,7 +25,7 @@ struct Vector2i
 constexpr int screenWidth{ 1200 };
 constexpr int screenHeight{ 600 };
 
-constexpr int gridScale{ 1 };
+constexpr int gridScale{ 8 };
 constexpr Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale };
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
@@ -67,7 +68,7 @@ void SwapParticles(int x0, int y0, int x1, int y1)
     SetPixelChange(x1, y1, p1.color);
 };
 
-void Init()
+void InitSimulation()
 {
     canvas = LoadRenderTexture(gridSize.x, gridSize.y);
     canvasChanges = LoadRenderTexture(gridSize.x, gridSize.y);
@@ -79,10 +80,19 @@ void Init()
         ClearBackground(PURPLE);
     EndTextureMode();
 
+// Fill entire canvas with screen
 #if 0
     for (int x = 0; x < gridSize.x; x++)
         for (int y = 0; y < gridSize.y; y++)
             SetParticle(x, y, { Particle::Type::Sand });
+#endif
+
+// Top - emitters, bottom - deleters
+#if 1
+    for (int x = 0; x < gridSize.x; x++)
+        SetParticle(x, gridSize.y-2, { Particle::Type::Emitter });
+    for (int x = 0; x < gridSize.x; x++)
+        SetParticle(x, 1, { Particle::Type::Deleter });
 #endif
 
     for (int y = 0; y < gridSize.y; y++)
@@ -103,7 +113,7 @@ int main(void)
 {
     InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
     SetTargetFPS(60);
-    Init();
+    InitSimulation();
 
     //Font defaultFont{ GetFontDefault() };
     //TextWithPivot XAxisLabel(defaultFont, "X Axis", {0.5f, 1.0f}, 28);
@@ -115,10 +125,14 @@ int main(void)
     u8 frameCounter{ frameLimit };
     Vector2 prevMousePosition{ GetMousePosition() };
 
-    SetParticle(gridSize.x / 2 + 20, gridSize.y / 2  + 30, { Particle::Type::Sand });
-    Particle* target{ GetParticlePtr(gridSize.x / 2, gridSize.y / 2) };
-    target->velX = 1;
-    target->velY = 1;
+#if 0
+    {
+        SetParticle(gridSize.x / 2 + 20, gridSize.y / 2  + 30, { Particle::Type::Sand });
+        Particle* target{ GetParticlePtr(gridSize.x / 2, gridSize.y / 2) };
+        target->velX = 1;
+        target->velY = 1;
+    }
+#endif
 
     Profiller::globalProfiller.BeginProfilling(" ::::: PROFILLER ::::: ");
 
@@ -274,6 +288,14 @@ void HandleKeyboardInput(Brush* _brush)
     {
         _brush->mDrawType = Particle::Type::Rock;
     }
+    else if (IsKeyPressed(KEY_FOUR))
+    {
+        _brush->mDrawType = Particle::Type::Emitter;
+    }
+    else if (IsKeyPressed(KEY_FIVE))
+    {
+        _brush->mDrawType = Particle::Type::Deleter;
+    }
 }
 
 void ProcessParticle(const Particle& particle, u16 x, u16 y)
@@ -326,6 +348,18 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
             {
                 SwapParticles(x, y, x+1, y);
             }
+        }
+        break;
+    case Particle::Type::Emitter:
+        if (GetParticlePtr(x, y-1)->props == 0)
+        {
+            SetParticle(x, y-1, {Particle::Type::Sand});
+        }
+        break;
+    case Particle::Type::Deleter:
+        if (!(GetParticlePtr(x, y+1)->props & Particle::Props::NonDestruct))
+        {
+            SetParticle(x, y+1, {Particle::Type::Air});
         }
         break;
     case Particle::Type::Air:
