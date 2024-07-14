@@ -29,7 +29,7 @@ struct Particle
     };
 
     Particle() = default;
-    Particle(Type _type);
+    Particle(Type _type, u32 _reg = 0);
 
     Color color{ PURPLE };
     u32 reg{ 0 }; // holds type-dependant info
@@ -68,8 +68,10 @@ struct ParticlePropertiesMap
 };
 ParticlePropertiesMap particlePropertiesMap;
 
-inline Particle::Particle(Particle::Type _type)
-    : props{particlePropertiesMap.vals[(u32)_type]}, type{_type}
+inline Particle::Particle(Particle::Type _type, u32 _reg)
+    : props{particlePropertiesMap.vals[(u32)_type]},
+      type{_type},
+      reg{_reg}
 {
     switch (type)
     {

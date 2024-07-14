@@ -102,7 +102,11 @@ void InitSimulation()
 // Top - emitters, bottom - deleters
 #if 1
     for (int x = 0; x < gridSize.x; x++)
-        SetParticle(x, gridSize.y-2, { Particle::Type::Emitter });
+    {
+        using enum Particle::Type;
+        Particle::Type emittingType{ x % 2 ? Sand : Water };
+        SetParticle(x, gridSize.y-2, { Emitter, (u32)emittingType });
+    }
     for (int x = 0; x < gridSize.x; x++)
         SetParticle(x, 1, { Particle::Type::Deleter });
 #endif
@@ -371,7 +375,7 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
     case Particle::Type::Emitter:
         if (GetParticlePtr(x, y-1)->props == 0)
         {
-            SetParticle(x, y-1, {Particle::Type::Sand});
+            SetParticle(x, y-1, { (Particle::Type)(particle.reg & 255) });
         }
         break;
     case Particle::Type::Deleter:
