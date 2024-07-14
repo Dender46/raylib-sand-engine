@@ -103,6 +103,15 @@ void InitSimulation()
 #if 1
     for (int x = 0; x < gridSize.x; x++)
     {
+        for (int y = 0; y < gridSize.y; y++)
+        {
+            using enum Particle::Type;
+            Particle::Type p{ x % 2 ? Sand : Water };
+            SetParticle(x, y, { p });
+        }
+    }
+    for (int x = 0; x < gridSize.x; x++)
+    {
         using enum Particle::Type;
         Particle::Type emittingType{ x % 2 ? Sand : Water };
         SetParticle(x, gridSize.y-2, { Emitter, (u32)emittingType });
@@ -137,9 +146,6 @@ int main(void)
 
     Brush brush{ 1, gridScale };
 
-    constexpr u8 frameLimit{ 0 };
-    u8 frameCounter{ frameLimit };
-
 #if 0
     {
         SetParticle(gridSize.x / 2 + 20, gridSize.y / 2  + 30, { Particle::Type::Sand });
@@ -151,40 +157,29 @@ int main(void)
 
     Profiller::globalProfiller.BeginProfilling(" ::::: PROFILLER ::::: ");
 
-    u64 frameCount{ 0 };
-    u8 stepCount{ 1 };
     while (!WindowShouldClose())
     {
         TIME_BANDWIDTH("Main loop", 0);
 
-        if (IsKeyPressed(KEY_S))
-            stepCount++;
-
         HandleKeyboardInput(&brush);
-        // if (stepCount > 0)
+        Particle* column{ particles };
+        for (u16 x{0}; x < gridSize.x; x++)
         {
-            stepCount = 0;
-            frameCounter = 0;
-
-            Particle* column{ particles };
-            for (u16 x{0}; x < gridSize.x; x++)
+            for (u16 y{0}; y < gridSize.y; y++)
             {
-                for (u16 y{0}; y < gridSize.y; y++)
-                {
-                    auto& particle{ column[y] };
-                    ProcessParticle(particle, x, y);
-                }
-                column += gridSize.y;
+                auto& particle{ column[y] };
+                ProcessParticle(particle, x, y);
             }
+            column += gridSize.y;
+        }
 
-            UpdateTexture(canvasChanges.texture, pixelChanges);
+        UpdateTexture(canvasChanges.texture, pixelChanges);
 
-            {
+        {
             TIME_BANDWIDTH("Update canvas", 0);
             BeginTextureMode(canvas);
                 DrawTexture(canvasChanges.texture, 0, 0, WHITE);
             EndTextureMode();
-            }
         }
 
         BeginDrawing();
