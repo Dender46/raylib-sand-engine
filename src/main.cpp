@@ -23,10 +23,22 @@ struct Vector2i
 
 
 constexpr int screenWidth{ 1200 };
-constexpr int screenHeight{ 600 };
+constexpr int screenHeight{ 645 };
+
+constexpr int canvasWidth{ 1200 };
+constexpr int canvasHeight{ 600 };
+
+constexpr Rectangle hotbarWorldRec{
+    0, 0,
+    screenWidth, screenHeight - canvasHeight
+};
+constexpr Rectangle canvasWorldRec{
+    0, screenHeight - canvasHeight,
+    canvasWidth, canvasHeight
+};
 
 constexpr int gridScale{ 8 };
-constexpr Vector2i gridSize{ screenWidth / gridScale, screenHeight / gridScale };
+constexpr Vector2i gridSize{ canvasWidth / gridScale, canvasHeight / gridScale };
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
 Particle* particles{ new Particle[particlesSize]{} };
@@ -39,7 +51,7 @@ Particle particleAir{ Particle::Type::Air };
 RenderTexture2D canvas;
 RenderTexture2D canvasChanges;
 
-void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
+void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
 void HandleKeyboardInput(Brush* _brush);
 void ProcessParticle(const Particle& particle, u16 x, u16 y);
 
@@ -123,7 +135,6 @@ int main(void)
 
     constexpr u8 frameLimit{ 0 };
     u8 frameCounter{ frameLimit };
-    Vector2 prevMousePosition{ GetMousePosition() };
 
 #if 0
     {
@@ -151,22 +162,6 @@ int main(void)
             stepCount = 0;
             frameCounter = 0;
 
-            auto mousePos{ GetMousePosition() };
-            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-            {
-                HandleMouseButtonInput(prevMousePosition, mousePos, MOUSE_BUTTON_LEFT, brush, &canvasChanges);
-            }
-            else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-            {
-                HandleMouseButtonInput(prevMousePosition, mousePos, MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
-            }
-            prevMousePosition = mousePos;
-
-            if (float mwDiff{ GetMouseWheelMove() }; mwDiff != 0)
-            {
-                brush.Resize(Clamp(brush.mSize + mwDiff * 5.0f, 1.0f, 100.0f), gridScale);
-            }
-
             Particle* column{ particles };
             for (u16 x{0}; x < gridSize.x; x++)
             {
@@ -190,11 +185,31 @@ int main(void)
 
         BeginDrawing();
         {
-            ClearBackground(RAYWHITE);
+            ClearBackground(BLACK);
 
-            DrawTextureEx(canvas.texture, {0, 0}, 0, gridScale, WHITE);
+            DrawTextureEx(canvas.texture, {0, canvasWorldRec.y}, 0, gridScale, WHITE);
 
-            brush.DrawOutline(GetMousePosition(), gridScale);
+            auto mousePos{ GetMousePosition() };
+            if (CheckCollisionPointRec(mousePos, canvasWorldRec))
+            {
+                brush.DrawMousePosOutline(gridScale);
+                if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+                {
+                    HandleMouseButtonInput(mousePos, MOUSE_BUTTON_LEFT, brush, &canvasChanges);
+                }
+                else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+                {
+                    HandleMouseButtonInput(mousePos, MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
+                }
+
+                if (float mwDiff{ GetMouseWheelMove() }; mwDiff != 0)
+                {
+                    brush.Resize(Clamp(brush.mSize + mwDiff * 5.0f, 1.0f, 100.0f), gridScale);
+                }
+            }
+
+            brush.Hotbar(hotbarWorldRec.width, hotbarWorldRec.height);
+            DrawFPS(15, 15);
 
             static Color testingColor{ WHITE };
             static float testingColorBrig{ 0.0f };
@@ -207,8 +222,6 @@ int main(void)
             //testingColor = ColorFromNormalized(colNormalized);
             ////GuiSlider({10.0f, 100.0f, 100.0f, 30.0f}, "tint", nullptr, &colNormalized.a, 0.0f, 1.0f);
             //DrawRectangle(10.0f, 160.0f, 100.0f, 100.0f, ColorBrightness(testingColor, testingColorBrig));
-
-            DrawFPS(20, 20);
         }
         EndDrawing();
     }
@@ -221,13 +234,18 @@ int main(void)
 }
 
 // Fills in a particle buffer and also draws to "buffer of changes"
-void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange)
+void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange)
 {
-    if (_currMousePos.x <= 0 || _currMousePos.x >= screenWidth ||
-        _currMousePos.y <= 0 || _currMousePos.y >= screenHeight)
+    _currMousePos.x -= canvasWorldRec.x;
+    _currMousePos.y -= canvasWorldRec.y;
+    if (_currMousePos.x <= 0 || _currMousePos.x >= canvasWidth ||
+        _currMousePos.y <= 0 || _currMousePos.y >= canvasHeight)
     {
         return;
     }
+    static Vector2 sPrevMousePosition{ GetMousePosition() };
+    sPrevMousePosition = _currMousePos;
+
 
     TIME_FUNCTION;
 
@@ -244,8 +262,8 @@ void HandleMouseButtonInput(Vector2 _prevMousePos, Vector2 _currMousePos, MouseB
     for (int i = 0; i < pathSize; i++)
     {
         float lerpT{ (float)i / pathSize };
-        float mouseCenterX{ Lerp(_prevMousePos.x, _currMousePos.x, lerpT) };
-        float mouseCenterY{ Lerp(_prevMousePos.y, _currMousePos.y, lerpT) };
+        float mouseCenterX{ Lerp(sPrevMousePosition.x, _currMousePos.x, lerpT) };
+        float mouseCenterY{ Lerp(sPrevMousePosition.y, _currMousePos.y, lerpT) };
 
         Vector2i center{ (int)mouseCenterX / gridScale, gridSize.y - (int)mouseCenterY / gridScale };
 
