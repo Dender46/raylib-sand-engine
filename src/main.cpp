@@ -12,7 +12,7 @@
 #include "particle.hpp"
 #include "textWithPivot.hpp"
 #include "brush.hpp"
-#define PROFILLER 0
+#define PROFILLER 1
 #include "profiller.hpp"
 
 struct Vector2i
@@ -37,7 +37,7 @@ constexpr Rectangle canvasWorldRec{
     canvasWidth, canvasHeight
 };
 
-constexpr int gridScale{ 8 };
+constexpr int gridScale{ 1 };
 constexpr Vector2i gridSize{ canvasWidth / gridScale, canvasHeight / gridScale };
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
@@ -156,12 +156,22 @@ int main(void)
 #endif
 
     Profiller::globalProfiller.BeginProfilling(" ::::: PROFILLER ::::: ");
+    u32 profillingFramesLimit{ 1 };
+    u32 profillingFramesCount{ 0 };
 
     while (!WindowShouldClose())
     {
-        TIME_BANDWIDTH("Main loop", 0);
+#if PROFILLER
+        if (++profillingFramesCount > profillingFramesLimit)
+        {
+            break;
+        }
+#endif // PROFILLER
+        TIME_FUNCTION;
 
         HandleKeyboardInput(&brush);
+        { 
+        TIME_BANDWIDTH("Processing", particlesSize * sizeof(Particle));
         Particle* column{ particles };
         for (u16 x{0}; x < gridSize.x; x++)
         {
@@ -172,21 +182,26 @@ int main(void)
             }
             column += gridSize.y;
         }
+        }
 
         UpdateTexture(canvasChanges.texture, pixelChanges);
 
         {
-            TIME_BANDWIDTH("Update canvas", 0);
-            BeginTextureMode(canvas);
-                DrawTexture(canvasChanges.texture, 0, 0, WHITE);
-            EndTextureMode();
+        TIME_BANDWIDTH("Rendering", 0);
+        {
+        TIME_BANDWIDTH("Draw changes", 0);
+        BeginTextureMode(canvas);
+            DrawTexture(canvasChanges.texture, 0, 0, WHITE);
+        EndTextureMode();
         }
 
         BeginDrawing();
         {
+            {
+            TIME_BANDWIDTH("Draw canvas", 0);
             ClearBackground(BLACK);
-
             DrawTextureEx(canvas.texture, {0, canvasWorldRec.y}, 0, gridScale, WHITE);
+            }
 
             auto mousePos{ GetMousePosition() };
             if (CheckCollisionPointRec(mousePos, canvasWorldRec))
@@ -207,12 +222,15 @@ int main(void)
                 }
             }
 
+            {
+            TIME_BANDWIDTH("Draw hotbar", 0);
             brush.Hotbar(hotbarWorldRec.width, hotbarWorldRec.height);
             DrawFPS(15, 15);
+            }
 
-            static Color testingColor{ WHITE };
-            static float testingColorBrig{ 0.0f };
-            auto colNormalized{ ColorNormalize(testingColor) };
+            //static Color testingColor{ WHITE };
+            //static float testingColorBrig{ 0.0f };
+            //auto colNormalized{ ColorNormalize(testingColor) };
             //GuiSlider({10.0f, 10.0f, 100.0f, 30.0f}, "r", nullptr, &colNormalized.x, 0.0f, 1.0f);
             //GuiSlider({10.0f, 40.0f, 100.0f, 30.0f}, "g", nullptr, &colNormalized.y, 0.0f, 1.0f);
             //GuiSlider({10.0f, 70.0f, 100.0f, 30.0f}, "b", nullptr, &colNormalized.z, 0.0f, 1.0f);
@@ -223,6 +241,7 @@ int main(void)
             //DrawRectangle(10.0f, 160.0f, 100.0f, 100.0f, ColorBrightness(testingColor, testingColorBrig));
         }
         EndDrawing();
+        }
     }
 
     Profiller::globalProfiller.EndProfilling();
@@ -244,9 +263,6 @@ void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const
     }
     static Vector2 sPrevMousePosition{ GetMousePosition() };
     sPrevMousePosition = _currMousePos;
-
-
-    TIME_FUNCTION;
 
     Particle::Type newParticleType;
     switch (_mouseBttn)
@@ -317,12 +333,13 @@ void HandleKeyboardInput(Brush* _brush)
 
 void ProcessParticle(const Particle& particle, u16 x, u16 y)
 {
-    TIME_FUNCTION;
+    // TIME_FUNCTION;
     switch (particle.type)
     {
-    case Particle::Type::Sand:
+    case Particle::Type::Sand: {
         if (y != 0)
         {
+            TIME_BANDWIDTH("Sand", 0);
             if (auto p{ GetParticlePtr(x, y-1)->props}; (p & Particle::Props::Liquid) || !p)
             {
                 SwapParticles(x, y, x, y-1);
@@ -336,10 +353,11 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
                 SwapParticles(x, y, x+1, y-1);
             }
         }
-        break;
-    case Particle::Type::Water:
+    } break;
+    case Particle::Type::Water: {
         if (y != 0)
         {
+            TIME_BANDWIDTH("Water", 0);
             if (GetParticlePtr(x, y-1)->props == 0)
             {
                 SwapParticles(x, y, x, y-1);
@@ -366,19 +384,22 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
                 SwapParticles(x, y, x+1, y);
             }
         }
-        break;
-    case Particle::Type::Emitter:
+    } break;
+    case Particle::Type::Emitter: {
+        TIME_BANDWIDTH("Emitter", 0);
         if (GetParticlePtr(x, y-1)->props == 0)
         {
             SetParticle(x, y-1, { (Particle::Type)(particle.reg & 255) });
+            // SetParticle(x, y-1, { (Particle::Type::Sand) });
         }
-        break;
-    case Particle::Type::Deleter:
+    } break;
+    case Particle::Type::Deleter: {
+        TIME_BANDWIDTH("Deleter", 0);
         if (!(GetParticlePtr(x, y+1)->props & Particle::Props::NonDestruct))
         {
             SetParticle(x, y+1, {Particle::Type::Air});
         }
-        break;
+    } break;
     case Particle::Type::Air:
     case Particle::Type::Rock:
     case Particle::Type::Bedrock:

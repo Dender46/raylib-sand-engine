@@ -160,7 +160,7 @@ struct ProfillingBlock
 void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
 {
     f64 cpuFreq{ (f64)EstimateCPUTimerFreq() };
-    for (size_t i = 0; i < nextEmptyAnchorIndex; i++)
+    for (size_t i = 0; i < 4096; i++)
     {
         const auto& a{ globalProfillingAnchors[i] };
         if (a.hitCount > 0)
@@ -168,12 +168,12 @@ void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
             u64 elapsedTSC{ a.elapsedExclusiveTSC };
             f64 elapsedTimeInS{ elapsedTSC / cpuFreq };
             f64 percentage{ (f64)elapsedTSC / (f64)_totalCyclesPassed * 100.0 };
-            std::cout << _outputPrefix << " " << std::to_string(i) << " "
+            std::cout << _outputPrefix << ' ' << std::to_string(i) << ' '
                 << a.label 
                 << " [" << a.hitCount << "]: "
-                << elapsedTSC << " "
-                << elapsedTimeInS << "s"
-                << " (" << percentage << "%";
+                << elapsedTSC << ' '
+                << elapsedTimeInS << 's'
+                << " (" << percentage << '%';
 
             if (a.elapsedInclusiveTSC != a.elapsedExclusiveTSC)
             {
@@ -193,7 +193,7 @@ void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
                 f64 gigabytesPerSecond{ bytesPerSecond / gigabyte };
                 std::cout << processedMegabytes << " mbs, at " << gigabytesPerSecond << " gb/s";
             }
-            std::cout << "\n";
+            std::cout << '\n';
         }
     }
 }
@@ -201,9 +201,13 @@ void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
 #define CONCAT(str1, str2)                  str1 ## str2
 #define CONCAT2(str1, str2)                 CONCAT(str1, str2)
 #define ANCHOR_INDEX_VAR                    CONCAT2(anchorIndex, __LINE__)
+// ===== Crude implementation for projects with multiple compilation units
+//#define TIME_BANDWIDTH(blockName, byteCount) \
+//    static int ANCHOR_INDEX_VAR = Profiller::GetNextAcnhorIndex(); \
+//    const Profiller::ProfillingBlock CONCAT2(timeFunction, __LINE__)(blockName, byteCount, ANCHOR_INDEX_VAR)
+// ===== Implementation for projects with single compilation unit
 #define TIME_BANDWIDTH(blockName, byteCount) \
-    static int ANCHOR_INDEX_VAR = Profiller::GetNextAcnhorIndex(); \
-    const Profiller::ProfillingBlock CONCAT2(timeFunction, __LINE__)(blockName, byteCount, ANCHOR_INDEX_VAR)
+    const Profiller::ProfillingBlock CONCAT2(timeFunction, __LINE__)(blockName, byteCount, __COUNTER__ + 1)
 
 #else // PROFILLER
 

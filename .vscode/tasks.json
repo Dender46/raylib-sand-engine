@@ -24,6 +24,7 @@
                 "${workspaceFolder}/vendor/raylib/include",
                 "-o",
                 "${workspaceFolder}/build/main",
+                // "-g"
             ],
             "options": {
                 "cwd": "${fileDirname}"

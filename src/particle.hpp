@@ -34,8 +34,8 @@ struct Particle
     Color color{ PURPLE };
     u32 reg{ 0 }; // holds type-dependant info
     u16 props{ 0 };
-    i8 velX{ 0 };
-    i8 velY{ 0 };
+    // i8 velX{ 0 };
+    // i8 velY{ 0 };
     Type type{ Type::Air };
 };
 
