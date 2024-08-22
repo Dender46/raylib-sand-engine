@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cassert>
 #include <iomanip>
+#include <vector>
 
 
 namespace Profiller {
@@ -108,7 +109,8 @@ struct ProfillingAnchor
     u64 hitCount;
     const char* label;
 };
-
+constexpr auto b{ sizeof(ProfillingAnchor)};
+constexpr auto a{ sizeof(ProfillingAnchor) * (4096) / 1024.0f * (2000) };
 ProfillingAnchor globalProfillingAnchors[4096];
 u32 globalProfillerAnchorParent;
 
@@ -156,6 +158,78 @@ struct ProfillingBlock
     u64 mStartTSC;
     u64 mOldElapsedInclusiveTSC;
 };
+
+struct AnchorTimingsResult
+{
+    ProfillingAnchor mAnchor;
+    u64 mElapsedTSC{ 0 };
+    f64 mElapsedTimeInS{ 0.0f };
+    f64 mPercentage{ 0.0f };
+    f64 mPercentageWithChildren{ 0.0f };
+    f64 mProcessedMegabytes;
+    f64 mGigabytesPerSecond;
+};
+
+inline u32 GetLastAnchorIndex();
+#define ANCHOR_LAST_INDEX_DEFINITION inline u32 Profiller::GetLastAnchorIndex() { return __COUNTER__; }
+
+std::vector<AnchorTimingsResult> GetAnchorsTimings(u64 _totalCyclesPassed)
+{
+    std::vector<AnchorTimingsResult> results;
+    u32 resultsSize{ GetLastAnchorIndex() };
+    results.reserve(resultsSize);
+
+    f64 cpuFreq{ (f64)EstimateCPUTimerFreq() };
+    for (size_t i = 0; i < resultsSize; i++)
+    {
+        const auto& a{ globalProfillingAnchors[i] };
+        if (a.hitCount > 0)
+        {
+            u64 elapsedTSC{ a.elapsedExclusiveTSC };
+            f64 elapsedTimeInS{ elapsedTSC / cpuFreq };
+            f64 percentage{ (f64)elapsedTSC / (f64)_totalCyclesPassed * 100.0 };
+            //std::cout << _outputPrefix << ' ' << std::to_string(i) << ' '
+            //    << a.label 
+            //    << " [" << a.hitCount << "]: "
+            //    << elapsedTSC << ' '
+            //    << elapsedTimeInS << 's'
+            //    << " (" << percentage << '%';
+
+            f64 percentageWithChildren;
+            if (a.elapsedInclusiveTSC != a.elapsedExclusiveTSC)
+            {
+                percentageWithChildren = (f64)a.elapsedInclusiveTSC / (f64)_totalCyclesPassed * 100.0;
+                // std::cout << ", " << percentageWithChildren << "% w/children";
+            }
+            // std::cout << ") ";
+
+            f64 processedMegabytes;
+            f64 gigabytesPerSecond;
+            if (a.processedBytesCount > 0)
+            {
+                constexpr f64 megabyte{ 1024.0f * 1024.0f };
+                constexpr f64 gigabyte{ megabyte * 1024.0f };
+
+                f64 seconds{ (f64)a.elapsedInclusiveTSC / cpuFreq };
+                f64 bytesPerSecond{ (f64)a.processedBytesCount / seconds };
+                processedMegabytes = (f64)a.processedBytesCount / megabyte;
+                gigabytesPerSecond = bytesPerSecond / gigabyte;
+                // std::cout << processedMegabytes << " mbs, at " << gigabytesPerSecond << " gb/s";
+            }
+            // std::cout << '\n';
+            results.emplace_back(
+                a,
+                elapsedTSC,
+                elapsedTimeInS,
+                percentage,
+                percentageWithChildren,
+                processedMegabytes,
+                gigabytesPerSecond
+            );
+        }
+    }
+    return results;
+}
 
 void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
 {
@@ -215,6 +289,8 @@ void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
 #define CONCAT2(...)
 #define ANCHOR_INDEX_VAR
 #define TIME_BANDWIDTH(...)
+#define GetLastAnchorIndex(...)
+#define ANCHOR_LAST_INDEX_DEFINITION
 #define PrintAnchorsTimings(...)
 
 #endif // PROFILLER
@@ -231,7 +307,7 @@ public:
         mStartTSC = ReadCPUTimer();
     }
 
-    void EndProfilling()
+    u64 EndProfilling()
     {
         mEndTSC = ReadCPUTimer();
 
@@ -242,6 +318,7 @@ public:
         std::cout << mOutputPrefix << " Total time: " << totalMillisecondsPassed << "ms (CPU freq " << mCpuFreq << ")\n";
 
         PrintAnchorsTimings(mOutputPrefix, totalCyclesPassed);
+        return totalCyclesPassed;
     }
 
 public:

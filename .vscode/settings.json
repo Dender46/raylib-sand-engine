@@ -3,6 +3,7 @@
         "*.config": "json",
         "cmath": "cpp",
         "iostream": "cpp",
-        "cassert": "cpp"
+        "cassert": "cpp",
+        "vector": "cpp"
     }
 }

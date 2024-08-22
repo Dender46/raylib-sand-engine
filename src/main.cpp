@@ -13,7 +13,8 @@
 #include "textWithPivot.hpp"
 #include "brush.hpp"
 #define PROFILLER 1
-#include "profiller.hpp"
+#include "profiler/profiller.hpp"
+#include "profiler/profilerRLDisplay.hpp"
 
 struct Vector2i
 {
@@ -156,13 +157,13 @@ int main(void)
 #endif
 
     Profiller::globalProfiller.BeginProfilling(" ::::: PROFILLER ::::: ");
-    u32 profillingFramesLimit{ 1 };
-    u32 profillingFramesCount{ 0 };
+    u32 profillingFramesLimit{ 500 };
+    u32 profillingFramesCount{ 1 };
 
     while (!WindowShouldClose())
     {
 #if PROFILLER
-        if (++profillingFramesCount > profillingFramesLimit)
+        if (profillingFramesCount++ > profillingFramesLimit)
         {
             break;
         }
@@ -244,9 +245,12 @@ int main(void)
         }
     }
 
-    Profiller::globalProfiller.EndProfilling();
-
+    u64 totalCyclesPassed{ Profiller::globalProfiller.EndProfilling() };
     CloseWindow();
+
+#if PROFILLER
+    Profiller::DrawProfilerResults(screenWidth, screenHeight, totalCyclesPassed);
+#endif // PROFILLER
 
     return 0;
 }
@@ -409,3 +413,5 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
         break;
     }
 }
+
+ANCHOR_LAST_INDEX_DEFINITION;
