@@ -6,6 +6,8 @@
 #include <iomanip>
 #include <vector>
 
+#define CONCAT(str1, str2)      str1 ## str2
+#define CONCAT2(str1, str2)     CONCAT(str1, str2)
 
 namespace Profiller {
 typedef uint8_t u8;
@@ -21,51 +23,11 @@ typedef int64_t i64;
 typedef float f32;
 typedef double f64;
 
-#if _WIN32
-    // NOTE: This includes are hacky cause this fixes the problem of name clashing of windows API and Raylib
-    // probably should be handled and moved out of namespace
-    #include <intrin.h>
-    #include <windows.h>
-    #include <psapi.h>
+u64 GetOSTimerFreq(void);
+u64 ReadOSTimer(void);
+u64 ReadCPUTimer(void);
 
-    u64 GetOSTimerFreq(void)
-    {
-        LARGE_INTEGER Freq;
-        QueryPerformanceFrequency(&Freq);
-        return Freq.QuadPart;
-    }
-
-    u64 ReadOSTimer(void)
-    {
-        LARGE_INTEGER Value;
-        QueryPerformanceCounter(&Value);
-        return Value.QuadPart;
-    }
-#else // _WIN32
-    #include <x86intrin.h>
-    #include <sys/time.h>
-    
-    u64 GetOSTimerFreq(void)
-    {
-        return 1000000;
-    }
-
-    u64 ReadOSTimer(void)
-    {
-        timeval Value;
-        gettimeofday(&Value, 0);
-        
-        u64 Result{ GetOSTimerFreq()*(u64)Value.tv_sec + (u64)Value.tv_usec };
-        return Result;
-    }
-#endif // _WIN32
-
-u64 ReadCPUTimer(void)
-{
-    return __rdtsc();
-}
-
-u64 EstimateCPUTimerFreq(void)
+inline u64 EstimateCPUTimerFreq(void)
 {
     u64 MillisecondsToWait = 100;
     u64 OSFreq = GetOSTimerFreq();
@@ -109,13 +71,13 @@ struct ProfillingAnchor
     u64 hitCount;
     const char* label;
 };
-constexpr auto b{ sizeof(ProfillingAnchor)};
-constexpr auto a{ sizeof(ProfillingAnchor) * (4096) / 1024.0f * (2000) };
-ProfillingAnchor globalProfillingAnchors[4096];
-u32 globalProfillerAnchorParent;
+inline constexpr auto b{ sizeof(ProfillingAnchor)};
+inline constexpr auto a{ sizeof(ProfillingAnchor) * (4096) / 1024.0f * (2000) };
+inline ProfillingAnchor globalProfillingAnchors[4096];
+inline u32 globalProfillerAnchorParent;
 
-u32 nextEmptyAnchorIndex{ 1 };
-int GetNextAcnhorIndex()
+inline u32 nextEmptyAnchorIndex{ 1 };
+inline int GetNextAcnhorIndex()
 {
     return nextEmptyAnchorIndex++;
 }
@@ -159,23 +121,24 @@ struct ProfillingBlock
     u64 mOldElapsedInclusiveTSC;
 };
 
-struct AnchorTimingsResult
+struct AnchorTimingsReport
 {
     ProfillingAnchor mAnchor;
     u64 mElapsedTSC{ 0 };
-    f64 mElapsedTimeInS{ 0.0f };
-    f64 mPercentage{ 0.0f };
-    f64 mPercentageWithChildren{ 0.0f };
-    f64 mProcessedMegabytes;
-    f64 mGigabytesPerSecond;
+    f64 mElapsedTimeInS{ 0 };
+    f64 mPercentage{ 0 };
+    f64 mPercentageWithChildren{ 0 };
+    f64 mProcessedMegabytes{ 0 };
+    f64 mGigabytesPerSecond{ 0 };
 };
 
+// ANCHOR_LAST_INDEX_DEFINITION macro should be written at the end of main file
 inline u32 GetLastAnchorIndex();
 #define ANCHOR_LAST_INDEX_DEFINITION inline u32 Profiller::GetLastAnchorIndex() { return __COUNTER__; }
 
-std::vector<AnchorTimingsResult> GetAnchorsTimings(u64 _totalCyclesPassed)
+inline std::vector<AnchorTimingsReport> GetAnchorsTimings(u64 _totalCyclesPassed)
 {
-    std::vector<AnchorTimingsResult> results;
+    std::vector<AnchorTimingsReport> results;
     u32 resultsSize{ GetLastAnchorIndex() };
     results.reserve(resultsSize);
 
@@ -217,21 +180,21 @@ std::vector<AnchorTimingsResult> GetAnchorsTimings(u64 _totalCyclesPassed)
                 // std::cout << processedMegabytes << " mbs, at " << gigabytesPerSecond << " gb/s";
             }
             // std::cout << '\n';
-            results.emplace_back(
-                a,
-                elapsedTSC,
-                elapsedTimeInS,
-                percentage,
-                percentageWithChildren,
-                processedMegabytes,
-                gigabytesPerSecond
-            );
+            AnchorTimingsReport atr;
+            atr.mAnchor = a;
+            atr.mElapsedTSC = elapsedTSC;
+            atr.mElapsedTimeInS = elapsedTimeInS;
+            atr.mPercentage = percentage;
+            atr.mPercentageWithChildren = percentageWithChildren;
+            atr.mProcessedMegabytes = processedMegabytes;
+            atr.mGigabytesPerSecond = gigabytesPerSecond;
+            results.emplace_back(std::move(atr));
         }
     }
     return results;
 }
 
-void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
+inline void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
 {
     f64 cpuFreq{ (f64)EstimateCPUTimerFreq() };
     for (size_t i = 0; i < 4096; i++)
@@ -272,9 +235,7 @@ void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
     }
 }
 
-#define CONCAT(str1, str2)                  str1 ## str2
-#define CONCAT2(str1, str2)                 CONCAT(str1, str2)
-#define ANCHOR_INDEX_VAR                    CONCAT2(anchorIndex, __LINE__)
+#define ANCHOR_INDEX_VAR    CONCAT2(anchorIndex, __LINE__)
 // ===== Crude implementation for projects with multiple compilation units
 //#define TIME_BANDWIDTH(blockName, byteCount) \
 //    static int ANCHOR_INDEX_VAR = Profiller::GetNextAcnhorIndex(); \
@@ -328,6 +289,6 @@ public:
     u64 mCpuFreq;
 };
 
-Profiller globalProfiller;
+inline Profiller globalProfiller;
 
 }

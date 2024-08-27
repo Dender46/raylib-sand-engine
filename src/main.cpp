@@ -8,7 +8,7 @@
 // #define RAYGUI_IMPLEMENTATION
 // #include "raygui.h"
 
-#include "types.hpp"
+#include "util.hpp"
 #include "particle.hpp"
 #include "textWithPivot.hpp"
 #include "brush.hpp"

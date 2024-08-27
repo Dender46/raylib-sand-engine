@@ -4,7 +4,7 @@
 #include <array>
 
 #include "raylib.h"
-#include "types.hpp"
+#include "util.hpp"
 
 struct Particle
 {

@@ -4,30 +4,33 @@
 #include "profiller.hpp"
 
 namespace Profiller{
+
+Font font{ GetFontDefault() };
+u32 fontSize{ 16 };
+constexpr u32 columnsCount{ 8 };
+u32 columnsWidth[columnsCount];
+void findMaxWidth(u32 colIndex, auto number) {
+    char strBuffer[64];
+    std::sprintf(strBuffer, "%d", number);
+    f32 strWidth{ MeasureTextEx(font, strBuffer, fontSize, 2).x };
+    if (columnsWidth[colIndex] < strWidth)
+    {
+        columnsWidth[colIndex] = strWidth;
+    }
+};
+
 inline void DrawProfilerResults(int screenWidth, int screenHeight, u64 _totalCyclesPassed)
 {
-    #if 0
     InitWindow(screenWidth, screenHeight, "Profiler results");
     SetTargetFPS(60);
 
-    const auto anchorTimings{ GetAnchorsTimings(_totalCyclesPassed) };
-    Font font{ GetFontDefault() };
-    u32 fontSize{ 16 };
-    u32 columnsCount{ 8 };
-    u32 columnsWidth[columnsCount];
+    const auto profilerReport{ GetAnchorsTimings(_totalCyclesPassed) };
     u32 columndsPosX[columnsCount];
     u32 rowsHeight{ 20 };
 
-    const auto findMaxWidth = [&](u32 colIndex, auto number) {
-        std::sprintf(strBuffer, "%d", number);
-        f32 strWidth{ MeasureTextEx(font, strBuffer, fontSize, 2).x };
-        if (columnsWidth[colIndex] < strWidth)
-        {
-            columnsWidth[colIndex] = strWidth;
-        }
-    };
+    
 
-    for (const auto& a : anchorTimings)
+    for (const auto& a : profilerReport)
     {
         u32 colIndex{ 0 };
         findMaxWidth(colIndex  , a.mAnchor.label);
@@ -45,26 +48,28 @@ inline void DrawProfilerResults(int screenWidth, int screenHeight, u64 _totalCyc
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        for (const auto& a : anchorTimings)
+        DrawText("Hello", 10, 10, 20, BLACK);
+#if 0
+        for (const auto& a : profilerReport)
         {
             u32 rowY{ 0 };
             u32 colX{ 0 };
             u32 colIndex{ 0 };
             DrawText(a.mAnchor.label, rowY, 0, 12, BLACK);
             DrawText(a.mAnchor.hitCount, rowY, 0, 12, BLACK);
-            DrawText(a.mElapsedTSC, rowY, 0, 12, BLACK);
-            DrawText(a.mElapsedTimeInS, rowY, 0, 12, BLACK);
-            DrawText(a.mPercentage, rowY, 0, 12, BLACK);
-            DrawText(a.mPercentageWithChildren, rowY, 0, 12, BLACK);
-            DrawText(a.mProcessedMegabytes, rowY, 0, 12, BLACK);
-            DrawText(a.mGigabytesPerSecond, rowY, 0, 12, BLACK);
+            DrawText(a.mElapsedTSC_str, rowY, 0, 12, BLACK);
+            DrawText(a.mElapsedTimeInS_str, rowY, 0, 12, BLACK);
+            DrawText(a.mPercentage_str, rowY, 0, 12, BLACK);
+            DrawText(a.mPercentageWithChildren_str, rowY, 0, 12, BLACK);
+            DrawText(a.mProcessedMegabytes_str, rowY, 0, 12, BLACK);
+            DrawText(a.mGigabytesPerSecond_str, rowY, 0, 12, BLACK);
             rowY += rowsHeight;
         }
+#endif
         EndDrawing();
     }
 
     CloseWindow();
-    #endif
 }
 
 }
