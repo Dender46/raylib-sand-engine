@@ -5,8 +5,7 @@
 
 #include "raylib.h"
 #include "raymath.h"
-// #define RAYGUI_IMPLEMENTATION
-// #include "raygui.h"
+#include "raygui.h"
 
 #include "util.hpp"
 #include "particle.hpp"
@@ -157,7 +156,7 @@ int main(void)
 #endif
 
     Profiller::globalProfiller.BeginProfilling(" ::::: PROFILLER ::::: ");
-    u32 profillingFramesLimit{ 500 };
+    u32 profillingFramesLimit{ 100 };
     u32 profillingFramesCount{ 1 };
 
     while (!WindowShouldClose())
@@ -415,3 +414,5 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
 }
 
 ANCHOR_LAST_INDEX_DEFINITION;
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
