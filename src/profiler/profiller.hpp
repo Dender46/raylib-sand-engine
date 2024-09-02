@@ -77,10 +77,6 @@ inline ProfillingAnchor globalProfillingAnchors[4096];
 inline u32 globalProfillerAnchorParent;
 
 inline u32 nextEmptyAnchorIndex{ 1 };
-inline int GetNextAcnhorIndex()
-{
-    return nextEmptyAnchorIndex++;
-}
 
 struct ProfillingBlock
 {
@@ -133,8 +129,21 @@ struct AnchorTimingsReport
 };
 
 // ANCHOR_LAST_INDEX_DEFINITION macro should be written at the end of main file
-inline u32 GetLastAnchorIndex();
-#define ANCHOR_LAST_INDEX_DEFINITION inline u32 Profiller::GetLastAnchorIndex() { return __COUNTER__; }
+extern u32 GetLastAnchorIndex();
+
+#if 0
+    // ===== Crude implementation for projects with multiple compilation units
+    #define ANCHOR_INDEX_VAR    CONCAT2(anchorIndex, __LINE__)
+    #define TIME_BANDWIDTH(blockName, byteCount) \
+        static int ANCHOR_INDEX_VAR = Profiller::nextEmptyAnchorIndex++; \
+        const Profiller::ProfillingBlock CONCAT2(timeFunction, __LINE__)(blockName, byteCount, ANCHOR_INDEX_VAR)
+    #define ANCHOR_LAST_INDEX_DEFINITION u32 Profiller::GetLastAnchorIndex() { return nextEmptyAnchorIndex++; }
+#else
+    // ===== Implementation for projects with single compilation unit
+    #define TIME_BANDWIDTH(blockName, byteCount) \
+        const Profiller::ProfillingBlock CONCAT2(timeFunction, __LINE__)(blockName, byteCount, __COUNTER__ + 1)
+    #define ANCHOR_LAST_INDEX_DEFINITION u32 Profiller::GetLastAnchorIndex() { return __COUNTER__; }
+#endif
 
 inline std::vector<AnchorTimingsReport> GetAnchorsTimings(u64 _totalCyclesPassed)
 {
@@ -234,15 +243,6 @@ inline void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPasse
         }
     }
 }
-
-#define ANCHOR_INDEX_VAR    CONCAT2(anchorIndex, __LINE__)
-// ===== Crude implementation for projects with multiple compilation units
-//#define TIME_BANDWIDTH(blockName, byteCount) \
-//    static int ANCHOR_INDEX_VAR = Profiller::GetNextAcnhorIndex(); \
-//    const Profiller::ProfillingBlock CONCAT2(timeFunction, __LINE__)(blockName, byteCount, ANCHOR_INDEX_VAR)
-// ===== Implementation for projects with single compilation unit
-#define TIME_BANDWIDTH(blockName, byteCount) \
-    const Profiller::ProfillingBlock CONCAT2(timeFunction, __LINE__)(blockName, byteCount, __COUNTER__ + 1)
 
 #else // PROFILLER
 
