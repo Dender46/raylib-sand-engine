@@ -247,9 +247,7 @@ int main(void)
     u64 totalCyclesPassed{ Profiller::globalProfiller.EndProfilling() };
     CloseWindow();
 
-#if PROFILLER
     Profiller::DrawProfilerResults(screenWidth, screenHeight, totalCyclesPassed);
-#endif // PROFILLER
 
     return 0;
 }

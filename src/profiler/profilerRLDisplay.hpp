@@ -6,6 +6,7 @@
 
 namespace Profiller{
 
+#if PROFILLER
 inline void DrawProfilerResults(int screenWidth, int screenHeight, u64 _totalCyclesPassed)
 {
     InitWindow(screenWidth, screenHeight, "Profiler results");
@@ -126,5 +127,14 @@ inline void DrawProfilerResults(int screenWidth, int screenHeight, u64 _totalCyc
 
     CloseWindow();
 }
+
+#else // PROFILLER
+
+inline void DrawProfilerResults(int screenWidth, int screenHeight, u64 _totalCyclesPassed)
+{
+    
+}
+
+#endif // PROFILLER
 
 }
