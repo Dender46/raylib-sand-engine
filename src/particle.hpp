@@ -21,11 +21,12 @@ struct Particle
     };
     enum Props : u16 {
         None            = 0,
-        Static          = 1 << 0,
-        Solid           = 1 << 1,
-        Liquid          = 1 << 2,
-        UserDestruct    = 1 << 3,
-        NonDestruct     = 1 << 4,
+        IsProcessed     = 1 << 0,
+        Static          = 1 << 1,
+        Solid           = 1 << 2,
+        Liquid          = 1 << 3,
+        UserDestruct    = 1 << 4,
+        NonDestruct     = 1 << 5,
     };
 
     Particle() = default;
@@ -66,7 +67,7 @@ struct ParticlePropertiesMap
     };
     u16 vals[(u32)Particle::Type::COUNT];
 };
-ParticlePropertiesMap particlePropertiesMap;
+const ParticlePropertiesMap particlePropertiesMap;
 
 inline Particle::Particle(Particle::Type _type, u32 _reg)
     : props{particlePropertiesMap.vals[(u32)_type]},

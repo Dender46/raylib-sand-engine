@@ -28,6 +28,9 @@ constexpr int screenHeight{ 645 };
 constexpr int canvasWidth{ 1200 };
 constexpr int canvasHeight{ 600 };
 
+constexpr int gridScale{ 1 };
+constexpr Vector2i gridSize{ canvasWidth / gridScale, canvasHeight / gridScale };
+
 constexpr Rectangle hotbarWorldRec{
     0, 0,
     screenWidth, screenHeight - canvasHeight
@@ -36,9 +39,6 @@ constexpr Rectangle canvasWorldRec{
     0, screenHeight - canvasHeight,
     canvasWidth, canvasHeight
 };
-
-constexpr int gridScale{ 1 };
-constexpr Vector2i gridSize{ canvasWidth / gridScale, canvasHeight / gridScale };
 
 constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
 Particle* particles{ new Particle[particlesSize]{} };
@@ -53,7 +53,7 @@ RenderTexture2D canvasChanges;
 
 void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
 void HandleKeyboardInput(Brush* _brush);
-void ProcessParticle(const Particle& particle, u16 x, u16 y);
+void ProcessParticle(Particle& particle, u16 x, u16 y);
 
 Particle* GetParticlePtr(int x, int y)
 {
@@ -173,12 +173,27 @@ int main(void)
         { 
         TIME_BANDWIDTH("Processing", particlesSize * sizeof(Particle));
         Particle* column{ particles };
-        for (u16 x{0}; x < gridSize.x; x++)
+        // First process even columns, than swith to uneven
+        for (u16 x{0}; x < gridSize.x; x += 2)
         {
             for (u16 y{0}; y < gridSize.y; y++)
             {
                 auto& particle{ column[y] };
                 ProcessParticle(particle, x, y);
+            }
+            column += gridSize.y * 2;
+            if (x == gridSize.x - 2)
+            {
+                column = particles + gridSize.y;
+                x = -1;
+            }
+        }
+        column = particles;
+        for (u16 x{0}; x < gridSize.x; x++)
+        {
+            for (u16 y{0}; y < gridSize.y; y++)
+            {
+                column[y].props ^= Particle::Props::IsProcessed;
             }
             column += gridSize.y;
         }
@@ -332,24 +347,32 @@ void HandleKeyboardInput(Brush* _brush)
     }
 }
 
-void ProcessParticle(const Particle& particle, u16 x, u16 y)
+void ProcessParticle(Particle& particle, u16 x, u16 y)
 {
     // TIME_FUNCTION;
+    if (particle.props & Particle::Props::IsProcessed)
+    {
+        return;
+    }
+
+    particle.props |= Particle::Props::IsProcessed;
+
     switch (particle.type)
     {
     case Particle::Type::Sand: {
         if (y != 0)
         {
             TIME_BANDWIDTH("Sand", 0);
-            if (auto p{ GetParticlePtr(x, y-1)->props}; (p & Particle::Props::Liquid) || !p)
+            auto p{ GetParticlePtr(x, y-1)};
+            if (; (p->props & Particle::Props::Liquid) || !(p->props & (~1)))
             {
                 SwapParticles(x, y, x, y-1);
             }
-            else if (auto p{GetParticlePtr(x-1, y-1)->props}; (p & Particle::Props::Liquid) || !p)
+            else if (p = GetParticlePtr(x-1, y-1); (p->props & Particle::Props::Liquid) || !(p->props & (~1)))
             {
                 SwapParticles(x, y, x-1, y-1);
             }
-            else if (auto p{GetParticlePtr(x+1, y-1)->props}; (p & Particle::Props::Liquid) || !p)
+            else if (p = GetParticlePtr(x+1, y-1); (p->props & Particle::Props::Liquid) || !(p->props & (~1)))
             {
                 SwapParticles(x, y, x+1, y-1);
             }
@@ -359,28 +382,28 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
         if (y != 0)
         {
             TIME_BANDWIDTH("Water", 0);
-            if (GetParticlePtr(x, y-1)->props == 0)
+            if (!(GetParticlePtr(x, y-1)->props & (~1)))
             {
                 SwapParticles(x, y, x, y-1);
             }
-            else if (GetParticlePtr(x+1, y-1)->props == 0)
+            else if (!(GetParticlePtr(x+1, y-1)->props & (~1)))
             {
                 SwapParticles(x, y, x+1, y-1);
             }
-            else if (GetParticlePtr(x-1, y-1)->props == 0)
+            else if (!(GetParticlePtr(x-1, y-1)->props & (~1)))
             {
                 SwapParticles(x, y, x-1, y-1);
             }
-            else if (GetParticlePtr(x-1, y)->props == 0 && GetParticlePtr(x+1, y)->props == 0)
+            else if (!(GetParticlePtr(x-1, y)->props & (~1)) && !(GetParticlePtr(x+1, y)->props & (~1)))
             {
-                i16 dir{ ((i16[]){-1, 1})[GetRandomValue(0, 1)] };
-                SwapParticles(x, y, x+dir, y);
+                static i8 dir[2]{ -1, 1 };
+                SwapParticles(x, y, x+dir[GetRandomValue(0, 1)], y);
             }
-            else if (GetParticlePtr(x-1, y)->props == 0)
+            else if (!(GetParticlePtr(x-1, y)->props & (~1)))
             {
                 SwapParticles(x, y, x-1, y);
             }
-            else if (GetParticlePtr(x+1, y)->props == 0)
+            else if (!(GetParticlePtr(x+1, y)->props & (~1)))
             {
                 SwapParticles(x, y, x+1, y);
             }
@@ -388,7 +411,7 @@ void ProcessParticle(const Particle& particle, u16 x, u16 y)
     } break;
     case Particle::Type::Emitter: {
         TIME_BANDWIDTH("Emitter", 0);
-        if (GetParticlePtr(x, y-1)->props == 0)
+        if (!(GetParticlePtr(x, y-1)->props & ~1))
         {
             SetParticle(x, y-1, { (Particle::Type)(particle.reg & 255) });
             // SetParticle(x, y-1, { (Particle::Type::Sand) });

@@ -5,6 +5,7 @@
 #include <cassert>
 #include <iomanip>
 #include <vector>
+#include <string>
 
 #define CONCAT(str1, str2)      str1 ## str2
 #define CONCAT2(str1, str2)     CONCAT(str1, str2)
@@ -246,8 +247,6 @@ inline void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPasse
 
 #else // PROFILLER
 
-#define CONCAT(...)
-#define CONCAT2(...)
 #define ANCHOR_INDEX_VAR
 #define TIME_BANDWIDTH(...)
 #define GetLastAnchorIndex(...)
