@@ -80,8 +80,8 @@ void SwapParticles(int x0, int y0, int x1, int y1)
 Vector2i GetMousePositionGrid(Vector2 mousePos)
 {
     return {
-        (int)mousePos.x / gridScale,
-        gridSize.y - (int)mousePos.y / gridScale
+        (i32)mousePos.x / (i32)gridScale,
+        gridSize.y - (i32)mousePos.y / (i32)gridScale
     };
 }
 
@@ -287,10 +287,9 @@ void SimStepperProcessing(SimStepper* simStepper)
     {
         Py = 0;
         Px += 2;
-        if (Px >= gridSize.x - 2)
-            Px = 1;
-
         if (Px == gridSize.x)
+            Px = 1;
+        else if (Px == gridSize.x + 1)
             Px = 0;
     }
 }
