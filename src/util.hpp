@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <limits>
 
+#define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 typedef uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
@@ -20,8 +22,6 @@ typedef int64_t i64;
 
 typedef float  f32;
 typedef double f64;
-
-#define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 struct Vector2i
 {

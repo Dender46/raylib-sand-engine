@@ -12,6 +12,7 @@
 #include "textWithPivot.hpp"
 #include "brush.hpp"
 #include "simStepper.hpp"
+#include "rl_tooltip.hpp"
 #define PROFILLER 0
 #include "profiler/profiller.hpp"
 #include "profiler/profilerRLDisplay.hpp"
@@ -231,6 +232,13 @@ int main(void)
                 if (float mwDiff{ GetMouseWheelMove() }; mwDiff != 0)
                 {
                     brush.Resize(Clamp(brush.mSize + mwDiff * 5.0f, 1.0f, 100.0f), gridScale);
+                }
+
+                if (simStepper.mIsPaused)
+                {
+                    char textBuffer[256];
+                    Particle::GetDescription(textBuffer, 256, mousePosGrid, GetParticlePtr(mousePosGrid.x, mousePosGrid.y));
+                    RL_Tooltip(mousePos, textBuffer, { screenWidth, screenHeight });
                 }
             }
 

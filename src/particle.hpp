@@ -6,28 +6,39 @@
 #include "raylib.h"
 #include "util.hpp"
 
+#define TYPES_TABLE \
+    TYPE_DEF(Air), \
+    TYPE_DEF(Sand), \
+    TYPE_DEF(Water), \
+    TYPE_DEF(Rock), \
+    TYPE_DEF(Emitter), \
+    TYPE_DEF(Deleter), \
+    TYPE_DEF(Bedrock),
+
+#define PROPS_TABLE \
+    PROP_DEF(IsProcessed,   0) \
+    PROP_DEF(Static,        1) \
+    PROP_DEF(Solid,         2) \
+    PROP_DEF(Liquid,        3) \
+    PROP_DEF(UserDestruct,  4) \
+    PROP_DEF(NonDestruct,   5) \
+
 struct Particle
 {
+    #define TYPE_DEF(type) type
     enum class Type : u8 {
-        Air,
-        Sand,
-        Water,
-        Rock,
-        Emitter,
-        Deleter,
-        Bedrock,
+        TYPES_TABLE
 
         COUNT
     };
+    #undef TYPE_DEF
+
+    #define PROP_DEF(prop, id) prop = 1 << id,
     enum Props : u16 {
-        None            = 0,
-        IsProcessed     = 1 << 0,
-        Static          = 1 << 1,
-        Solid           = 1 << 2,
-        Liquid          = 1 << 3,
-        UserDestruct    = 1 << 4,
-        NonDestruct     = 1 << 5,
+        None = 0,
+        PROPS_TABLE
     };
+    #undef PROP_DEF
 
     Particle() = default;
     Particle(Type _type, u32 _reg = 0);
@@ -38,6 +49,8 @@ struct Particle
     // i8 velX{ 0 };
     // i8 velY{ 0 };
     Type type{ Type::Air };
+
+    static void GetDescription(char* buffer, u16 bufferLen, Vector2i pPos, const Particle* const particle);
 };
 
 struct ParticlePropertiesMap
@@ -68,6 +81,19 @@ struct ParticlePropertiesMap
     u16 vals[(u32)Particle::Type::COUNT];
 };
 const ParticlePropertiesMap particlePropertiesMap;
+#define TYPE_DEF(type) #type
+static const char* const ParticleTypeStr[] {
+    TYPES_TABLE
+};
+#undef TYPE_DEF
+#undef TYPES_TABLE
+
+#define PROP_DEF(prop, id) #prop,
+static const char* const ParticlePropStr[] {
+    PROPS_TABLE
+};
+#undef PROP_DEF
+#undef PROPS_TABLE
 
 inline Particle::Particle(Particle::Type _type, u32 _reg)
     : props{particlePropertiesMap.vals[(u32)_type]},
@@ -101,4 +127,28 @@ inline Particle::Particle(Particle::Type _type, u32 _reg)
         assert(false);
         break;
     }
+}
+#include <iostream>
+inline void Particle::GetDescription(char* buffer, u16 bufferLen, Vector2i pPos, const Particle* const particle)
+{
+    // Pos: 1000 x 1000\nType: Emitter\nProps: None\nIsProcessed\nStatic\nSolid\nLiquid\nUserDestruct\nNonDestruct
+    // const char* str{ "Pos: %u x %u\nType: %s\nProps: %s\n" };
+    const char* str{ "Pos: %u x %u\nType: %s\nProps: %s" };
+    char propsStr[128]{0};
+
+    u16 index{ 0 }, bitOffset{ 1 };
+    int propsStrPos{ 0 };
+    while (index < ARRAY_COUNT(ParticlePropStr))
+    {
+        if (particle->props & bitOffset)
+        {
+            TextAppend(propsStr, ParticlePropStr[index], &propsStrPos);
+            TextAppend(propsStr, "; ", &propsStrPos);
+        }
+
+        bitOffset <<= 1;
+        index++;
+    }
+
+    std::sprintf(buffer, str, pPos.x, pPos.y, ParticleTypeStr[(u8)particle->type], propsStr);
 }
