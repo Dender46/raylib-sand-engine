@@ -20,3 +20,9 @@ typedef int64_t i64;
 
 typedef float  f32;
 typedef double f64;
+
+struct Vector2i
+{
+    i32 x;
+    i32 y;
+};

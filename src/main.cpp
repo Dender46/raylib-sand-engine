@@ -11,24 +11,18 @@
 #include "particle.hpp"
 #include "textWithPivot.hpp"
 #include "brush.hpp"
-#define PROFILLER 1
+#include "simStepper.hpp"
+#define PROFILLER 0
 #include "profiler/profiller.hpp"
 #include "profiler/profilerRLDisplay.hpp"
 
-struct Vector2i
-{
-    int x;
-    int y;
-};
+constexpr i32 screenWidth{ 1200 };
+constexpr i32 screenHeight{ 645 };
 
+constexpr u32 canvasWidth{ 1200 };
+constexpr u32 canvasHeight{ 600 };
 
-constexpr int screenWidth{ 1200 };
-constexpr int screenHeight{ 645 };
-
-constexpr int canvasWidth{ 1200 };
-constexpr int canvasHeight{ 600 };
-
-constexpr int gridScale{ 1 };
+constexpr u32 gridScale{ 10 };
 constexpr Vector2i gridSize{ canvasWidth / gridScale, canvasHeight / gridScale };
 
 constexpr Rectangle hotbarWorldRec{
@@ -40,7 +34,7 @@ constexpr Rectangle canvasWorldRec{
     canvasWidth, canvasHeight
 };
 
-constexpr uint32_t particlesSize{ gridSize.x * gridSize.y };
+constexpr u32 particlesSize{ gridSize.x * gridSize.y };
 Particle* particles{ new Particle[particlesSize]{} };
 Color* pixelChanges{ new Color[particlesSize]{} };
 
@@ -51,6 +45,8 @@ Particle particleAir{ Particle::Type::Air };
 RenderTexture2D canvas;
 RenderTexture2D canvasChanges;
 
+void OneFrameProcessing();
+void SimStepperProcessing(SimStepper* simStepper);
 void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
 void HandleKeyboardInput(Brush* _brush);
 void ProcessParticle(Particle& particle, u16 x, u16 y);
@@ -145,6 +141,7 @@ int main(void)
     //TextWithPivot YAxisLabel(defaultFont, "Y Axis", {0.5f, 0.0f}, 28);
 
     Brush brush{ 1, gridScale };
+    SimStepper simStepper;
 
 #if 0
     {
@@ -170,33 +167,22 @@ int main(void)
         TIME_FUNCTION;
 
         HandleKeyboardInput(&brush);
-        { 
-        TIME_BANDWIDTH("Processing", particlesSize * sizeof(Particle));
-        Particle* column{ particles };
-        // First process even columns, than swith to uneven
-        for (u16 x{0}; x < gridSize.x; x += 2)
+
+        if (!simStepper.mIsPaused)
         {
-            for (u16 y{0}; y < gridSize.y; y++)
-            {
-                auto& particle{ column[y] };
-                ProcessParticle(particle, x, y);
-            }
-            column += gridSize.y * 2;
-            if (x == gridSize.x - 2)
-            {
-                column = particles + gridSize.y;
-                x = -1;
-            }
+            TIME_BANDWIDTH("Processing", particlesSize * sizeof(Particle));
+            OneFrameProcessing();
         }
-        column = particles;
-        for (u16 x{0}; x < gridSize.x; x++)
+        else if (simStepper.mStepNextParticles != 0)
         {
-            for (u16 y{0}; y < gridSize.y; y++)
-            {
-                column[y].props ^= Particle::Props::IsProcessed;
-            }
-            column += gridSize.y;
+            while (simStepper.mStepNextParticles != 0)
+                SimStepperProcessing(&simStepper);
         }
+        else if (simStepper.mStepNextFrame != 0)
+        {
+            do {
+                OneFrameProcessing();
+            } while (--simStepper.mStepNextFrame != 0);
         }
 
         UpdateTexture(canvasChanges.texture, pixelChanges);
@@ -238,8 +224,17 @@ int main(void)
             }
 
             {
-            TIME_BANDWIDTH("Draw hotbar", 0);
+            TIME_BANDWIDTH("Draw UI", 0);
             brush.Hotbar(hotbarWorldRec.width, hotbarWorldRec.height);
+            simStepper.Hotbar(hotbarWorldRec.width, hotbarWorldRec.height);
+
+            if (simStepper.mIsPaused)
+            {
+                Vector2 localPos{ simStepper.x * gridScale, simStepper.y * gridScale };
+                localPos.y = Lerp(canvasHeight, 0, (f32)simStepper.y / gridSize.y) - gridScale;
+                Vector2 globalPos{ canvasWorldRec.x + localPos.x, canvasWorldRec.y + localPos.y };
+                DrawRectangleLines(globalPos.x, globalPos.y, gridScale, gridScale, RED);
+            }
             DrawFPS(15, 15);
             }
 
@@ -265,6 +260,59 @@ int main(void)
     Profiller::DrawProfilerResults(screenWidth, screenHeight, totalCyclesPassed);
 
     return 0;
+}
+
+void SimStepperProcessing(SimStepper* simStepper)
+{
+    simStepper->mStepNextParticles--;
+
+    // First process even columns, than swith to uneven
+    auto& Px = simStepper->x;
+    auto& Py = simStepper->y;
+    auto& particle{ *GetParticlePtr(Px, Py) };
+    ProcessParticle(particle, Px, Py);
+    particle.props ^= Particle::Props::IsProcessed;
+
+    Py++;
+    if (Py == gridSize.y)
+    {
+        Py = 0;
+        Px += 2;
+        if (Px >= gridSize.x - 2)
+            Px = 1;
+
+        if (Px == gridSize.x)
+            Px = 0;
+    }
+}
+
+void OneFrameProcessing()
+{
+    // First process even columns, than swith to uneven
+    Particle* column{ particles };
+    for (u16 x{0}; x < gridSize.x; x += 2)
+    {
+        for (u16 y{0}; y < gridSize.y; y++)
+        {
+            auto& particle{ column[y] };
+            ProcessParticle(particle, x, y);
+        }
+        column += gridSize.y * 2;
+        if (x == gridSize.x - 2)
+        {
+            column = particles + gridSize.y;
+            x = -1;
+        }
+    }
+    column = particles;
+    for (u16 x{0}; x < gridSize.x; x++)
+    {
+        for (u16 y{0}; y < gridSize.y; y++)
+        {
+            column[y].props &= ~Particle::Props::IsProcessed;
+        }
+        column += gridSize.y;
+    }
 }
 
 // Fills in a particle buffer and also draws to "buffer of changes"
