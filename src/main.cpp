@@ -22,7 +22,7 @@ constexpr i32 screenHeight{ 645 };
 constexpr u32 canvasWidth{ 1200 };
 constexpr u32 canvasHeight{ 600 };
 
-constexpr u32 gridScale{ 10 };
+constexpr u32 gridScale{ 50 };
 constexpr Vector2i gridSize{ canvasWidth / gridScale, canvasHeight / gridScale };
 
 constexpr Rectangle hotbarWorldRec{
@@ -47,6 +47,7 @@ RenderTexture2D canvasChanges;
 
 void OneFrameProcessing();
 void SimStepperProcessing(SimStepper* simStepper);
+Vector2i GetMousePositionGrid();
 void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
 void HandleKeyboardInput(Brush* _brush);
 void ProcessParticle(Particle& particle, u16 x, u16 y);
@@ -75,6 +76,14 @@ void SwapParticles(int x0, int y0, int x1, int y1)
     SetPixelChange(x0, y0, p0.color);
     SetPixelChange(x1, y1, p1.color);
 };
+
+Vector2i GetMousePositionGrid(Vector2 mousePos)
+{
+    return {
+        (int)mousePos.x / gridScale,
+        gridSize.y - (int)mousePos.y / gridScale
+    };
+}
 
 void InitSimulation()
 {
@@ -166,6 +175,7 @@ int main(void)
 #endif // PROFILLER
         TIME_FUNCTION;
 
+        auto mousePos{ GetMousePosition() };
         HandleKeyboardInput(&brush);
 
         if (!simStepper.mIsPaused)
@@ -204,7 +214,6 @@ int main(void)
             DrawTextureEx(canvas.texture, {0, canvasWorldRec.y}, 0, gridScale, WHITE);
             }
 
-            auto mousePos{ GetMousePosition() };
             if (CheckCollisionPointRec(mousePos, canvasWorldRec))
             {
                 brush.DrawMousePosOutline(gridScale);
@@ -344,21 +353,21 @@ void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const
         float mouseCenterX{ Lerp(sPrevMousePosition.x, _currMousePos.x, lerpT) };
         float mouseCenterY{ Lerp(sPrevMousePosition.y, _currMousePos.y, lerpT) };
 
-        Vector2i center{ (int)mouseCenterX / gridScale, gridSize.y - (int)mouseCenterY / gridScale };
+        Vector2i center{ GetMousePositionGrid({ mouseCenterX, mouseCenterY }) };
 
         // Clamp in case if mouse is out of window or close to the edges
         // Also considering bedrock border
         Rectangle area {
-            Clamp(center.x - _brush.mSize / 2, 1, gridSize.x - 2),
-            Clamp(center.y - _brush.mSize / 2, 1, gridSize.y - 2),
-            Clamp(center.x + _brush.mSize / 2, 1, gridSize.x - 2),
-            Clamp(center.y + _brush.mSize / 2, 1, gridSize.y - 2),
+            Clamp(center.x, 1, gridSize.x - 1),
+            Clamp(center.y - _brush.mSize, 1, gridSize.y - 1),
+            Clamp(center.x + _brush.mSize, 1, gridSize.x - 1),
+            Clamp(center.y, 1, gridSize.y - 1),
         };
 
         // Update particle buffer and draw to "buffer of changes"
-        for (int y = area.y; y <= area.height; y++)
+        for (int y = area.y; y < area.height; y++)
         {
-            for (int x = area.x; x <= area.width; x++)
+            for (int x = area.x; x < area.width; x++)
             {
                 auto particleTarget{ GetParticlePtr(x, y) };
                 if (particleTarget->props & (u16)Particle::Props::NonDestruct)

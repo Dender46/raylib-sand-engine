@@ -79,9 +79,11 @@ inline void Brush::Hotbar(float width, float height)
 inline void Brush::DrawMousePosOutline(int _gridScale)
 {
     Vector2 mousePos{ GetMousePosition() };
-    mArea.x = mousePos.x - mSize * _gridScale / 2;
-    mArea.y = mousePos.y - mSize * _gridScale / 2;
-    DrawRectangleLinesEx(mArea, _gridScale, RED);
+    // Divide by gridscale and multiply again an integer number for grid-like behaviour
+    // TODO: magic number 45 is due to canvas being offset in the window :(((((
+    mArea.x = ((int)(mousePos.x     ) / _gridScale * _gridScale     );
+    mArea.y = ((int)(mousePos.y - 45) / _gridScale * _gridScale + 45);
+    DrawRectangleLinesEx(mArea, _gridScale * 0.1f, RED);
 }
 
 inline void Brush::Resize(uint16_t _newSize, int _gridScale)
