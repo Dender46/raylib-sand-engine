@@ -81,7 +81,7 @@ Vector2i GetMousePositionGrid(Vector2 mousePos)
 {
     return {
         (i32)mousePos.x / (i32)gridScale,
-        gridSize.y - (i32)mousePos.y / (i32)gridScale
+        gridSize.y - (i32)mousePos.y / (i32)gridScale - 1
     };
 }
 
@@ -175,7 +175,9 @@ int main(void)
 #endif // PROFILLER
         TIME_FUNCTION;
 
-        auto mousePos{ GetMousePosition() };
+        Vector2 mousePos{ GetMousePosition() };
+        Vector2 mousePosCanvas{ mousePos.x + canvasWorldRec.x, mousePos.y - canvasWorldRec.y };
+        Vector2i mousePosGrid{ GetMousePositionGrid({ mousePosCanvas.x, mousePosCanvas.y }) };
         HandleKeyboardInput(&brush);
 
         if (!simStepper.mIsPaused)
@@ -239,8 +241,7 @@ int main(void)
 
             if (simStepper.mIsPaused)
             {
-                Vector2 localPos{ simStepper.x * gridScale, simStepper.y * gridScale };
-                localPos.y = Lerp(canvasHeight, 0, (f32)simStepper.y / gridSize.y) - gridScale;
+                Vector2 localPos{ simStepper.x * gridScale, (gridSize.y - simStepper.y) * gridScale - gridScale};
                 Vector2 globalPos{ canvasWorldRec.x + localPos.x, canvasWorldRec.y + localPos.y };
                 DrawRectangleLines(globalPos.x, globalPos.y, gridScale, gridScale, RED);
             }

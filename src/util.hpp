@@ -21,6 +21,8 @@ typedef int64_t i64;
 typedef float  f32;
 typedef double f64;
 
+#define ARRAY_COUNT(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 struct Vector2i
 {
     i32 x;
