@@ -49,7 +49,7 @@ RenderTexture2D canvasChanges;
 void OneFrameProcessing();
 void SimStepperProcessing(SimStepper* simStepper);
 Vector2i GetMousePositionGrid();
-void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
+void HandleMouseButtonInput(Vector2i _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
 void HandleKeyboardInput(Brush* _brush);
 void ProcessParticle(Particle& particle, u16 x, u16 y);
 
@@ -106,7 +106,7 @@ void InitSimulation()
 #endif
 
 // Top - emitters, bottom - deleters
-#if 1
+#if 0
     for (int x = 0; x < gridSize.x; x++)
     {
         for (int y = 0; y < gridSize.y; y++)
@@ -222,11 +222,11 @@ int main(void)
                 brush.DrawMousePosOutline(gridScale);
                 if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
                 {
-                    HandleMouseButtonInput(mousePos, MOUSE_BUTTON_LEFT, brush, &canvasChanges);
+                    HandleMouseButtonInput(mousePosGrid, MOUSE_BUTTON_LEFT, brush, &canvasChanges);
                 }
                 else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
                 {
-                    HandleMouseButtonInput(mousePos, MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
+                    HandleMouseButtonInput(mousePosGrid, MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
                 }
 
                 if (float mwDiff{ GetMouseWheelMove() }; mwDiff != 0)
@@ -333,17 +333,16 @@ void OneFrameProcessing()
 }
 
 // Fills in a particle buffer and also draws to "buffer of changes"
-void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange)
+void HandleMouseButtonInput(Vector2i _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange)
 {
-    _currMousePos.x -= canvasWorldRec.x;
-    _currMousePos.y -= canvasWorldRec.y;
     if (_currMousePos.x <= 0 || _currMousePos.x >= canvasWidth ||
         _currMousePos.y <= 0 || _currMousePos.y >= canvasHeight)
     {
         return;
     }
     static Vector2 sPrevMousePosition{ GetMousePosition() };
-    sPrevMousePosition = _currMousePos;
+    sPrevMousePosition.x = _currMousePos.x;
+    sPrevMousePosition.y = _currMousePos.y;
 
     Particle::Type newParticleType;
     switch (_mouseBttn)
@@ -355,27 +354,35 @@ void HandleMouseButtonInput(Vector2 _currMousePos, MouseButton _mouseBttn, const
     }
 
     int pathSize{ 32 };
-    for (int i = 0; i < pathSize; i++)
+    //for (int i = 0; i < pathSize; i++)
     {
-        float lerpT{ (float)i / pathSize };
-        float mouseCenterX{ Lerp(sPrevMousePosition.x, _currMousePos.x, lerpT) };
-        float mouseCenterY{ Lerp(sPrevMousePosition.y, _currMousePos.y, lerpT) };
+        //float lerpT{ (float)i / pathSize };
+        // Vector2i center{ 
+        //     Lerp(sPrevMousePosition.x, _currMousePos.x, lerpT),
+        //     Lerp(sPrevMousePosition.y, _currMousePos.y, lerpT)
+        // };
 
-        Vector2i center{ GetMousePositionGrid({ mouseCenterX, mouseCenterY }) };
+        /* How area works:
+            Clamp in case if mouse is out of window or close to the edges
+            Also considering bedrock border
+            x h         x = mouse pos
+            ^           y = begin of area from bottom
+            |           w = width from x
+            |           h = mouse pos + 1 (+1 for some reason)
+            y---->w
+        */
 
-        // Clamp in case if mouse is out of window or close to the edges
-        // Also considering bedrock border
         Rectangle area {
-            Clamp(center.x, 1, gridSize.x - 1),
-            Clamp(center.y - _brush.mSize, 1, gridSize.y - 1),
-            Clamp(center.x + _brush.mSize, 1, gridSize.x - 1),
-            Clamp(center.y, 1, gridSize.y - 1),
+            Clamp(_currMousePos.x, 1, gridSize.x - 1),
+            Clamp(_currMousePos.y - _brush.mSize + 1, 1, gridSize.y - 1),
+            Clamp(_currMousePos.x + _brush.mSize, 1, gridSize.x - 1),
+            Clamp(_currMousePos.y + 1, 1, gridSize.y - 1),
         };
 
         // Update particle buffer and draw to "buffer of changes"
-        for (int y = area.y; y < area.height; y++)
+        for (int x = area.x; x < area.width; x++)
         {
-            for (int x = area.x; x < area.width; x++)
+            for (int y = area.y; y < area.height; y++)
             {
                 auto particleTarget{ GetParticlePtr(x, y) };
                 if (particleTarget->props & (u16)Particle::Props::NonDestruct)
