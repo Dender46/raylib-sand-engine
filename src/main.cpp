@@ -17,13 +17,13 @@
 #include "profiler/profiller.hpp"
 #include "profiler/profilerRLDisplay.hpp"
 
-constexpr i32 screenWidth{ 1200 };
-constexpr i32 screenHeight{ 645 };
+constexpr i32 screenWidth{ 1600 };
+constexpr i32 screenHeight{ 800 };
 
-constexpr u32 canvasWidth{ 1200 };
-constexpr u32 canvasHeight{ 600 };
+constexpr u32 canvasWidth{ screenWidth };
+constexpr u32 canvasHeight{ screenHeight - 45 };
 
-constexpr u32 gridScale{ 50 };
+constexpr u32 gridScale{ 1 };
 constexpr Vector2i gridSize{ canvasWidth / gridScale, canvasHeight / gridScale };
 
 constexpr Rectangle hotbarWorldRec{
@@ -49,9 +49,13 @@ RenderTexture2D canvasChanges;
 void OneFrameProcessing();
 void SimStepperProcessing(SimStepper* simStepper);
 Vector2i GetMousePositionGrid();
-void HandleMouseButtonInput(Vector2i _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
+void HandleMouseButtonInput(Vector2i _currMousePos, Vector2i _prevMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange);
 void HandleKeyboardInput(Brush* _brush);
 void ProcessParticle(Particle& particle, u16 x, u16 y);
+
+void DrawLine(int x0, int y0, int x1, int y1, Particle::Type p);
+void DrawLineH(int x0, int y0, int x1, int y1, Particle::Type p);
+void DrawLineV(int x0, int y0, int x1, int y1, Particle::Type p);
 
 Particle* GetParticlePtr(int x, int y)
 {
@@ -86,19 +90,13 @@ Vector2i GetMousePositionGrid(Vector2 mousePos)
     };
 }
 
-void InitSimulation()
+void InitFillScreen()
 {
-    canvas = LoadRenderTexture(gridSize.x, gridSize.y);
-    canvasChanges = LoadRenderTexture(gridSize.x, gridSize.y);
+    for (int x = 0; x < gridSize.x; x++)
+        for (int y = 0; y < gridSize.y; y++)
+            SetParticle(x, y, { Particle::Type::Air });
 
-    BeginTextureMode(canvas);
-        ClearBackground(PURPLE);
-    EndTextureMode();
-    BeginTextureMode(canvasChanges);
-        ClearBackground(PURPLE);
-    EndTextureMode();
-
-// Fill entire canvas with screen
+    // Fill entire canvas with screen
 #if 0
     for (int x = 0; x < gridSize.x; x++)
         for (int y = 0; y < gridSize.y; y++)
@@ -136,6 +134,21 @@ void InitSimulation()
         SetParticle(x, 0, particleBedrock);
         SetParticle(x, gridSize.y-1, particleBedrock);
     }
+}
+
+void InitSimulation()
+{
+    canvas = LoadRenderTexture(gridSize.x, gridSize.y);
+    canvasChanges = LoadRenderTexture(gridSize.x, gridSize.y);
+
+    BeginTextureMode(canvas);
+        ClearBackground(PURPLE);
+    EndTextureMode();
+    BeginTextureMode(canvasChanges);
+        ClearBackground(PURPLE);
+    EndTextureMode();
+
+    InitFillScreen();
 }
 
 
@@ -220,14 +233,17 @@ int main(void)
             if (CheckCollisionPointRec(mousePos, canvasWorldRec))
             {
                 brush.DrawMousePosOutline(gridScale);
+
+                static Vector2i prevMousePosGrid{ mousePosGrid };
                 if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
                 {
-                    HandleMouseButtonInput(mousePosGrid, MOUSE_BUTTON_LEFT, brush, &canvasChanges);
+                    HandleMouseButtonInput(mousePosGrid, prevMousePosGrid, MOUSE_BUTTON_LEFT, brush, &canvasChanges);
                 }
                 else if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
                 {
-                    HandleMouseButtonInput(mousePosGrid, MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
+                    HandleMouseButtonInput(mousePosGrid, prevMousePosGrid, MOUSE_BUTTON_RIGHT, brush, &canvasChanges);
                 }
+                prevMousePosGrid = mousePosGrid;
 
                 if (float mwDiff{ GetMouseWheelMove() }; mwDiff != 0)
                 {
@@ -278,6 +294,75 @@ int main(void)
     Profiller::DrawProfilerResults(screenWidth, screenHeight, totalCyclesPassed);
 
     return 0;
+}
+
+// void DrawLine(int x0, int y0, int x1, int y1, bool (*func)(int, int, Particle::Type), Particle::Type pType)
+void DrawLine(int x0, int y0, int x1, int y1, Particle::Type p)
+{
+    if (abs(x1-x0) > abs(y1-y0))
+        DrawLineH(x0, y0, x1, y1, p);
+    else
+        DrawLineV(x0, y0, x1, y1, p);
+}
+
+void DrawLineH(int x0, int y0, int x1, int y1, Particle::Type particle)
+{
+    if (x0 > x1) {
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+    }
+    int dx = x1 - x0;
+    if (dx == 0) {
+        SetParticle(x0, y0, particle);
+        return;
+    }
+    int dy = y1 - y0;
+    int dir = dy < 0 ? -1 : 1;
+    dy *= 2*dir;
+
+
+    int p = dy - dx;
+    for (int i = 0; i < dx+1; i++)
+    {
+        if (GetParticlePtr(x0 + i, y0)->props & (u16)Particle::Props::NonDestruct)
+            continue;
+        SetParticle(x0 + i, y0, {particle});
+        if (p >= 0) {
+            y0 += dir;
+            p -= 2*dx;
+        }
+        p += dy;
+    }
+}
+
+void DrawLineV(int x0, int y0, int x1, int y1, Particle::Type particle)
+{
+    if (y0 > y1) {
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+    }
+    int dy = y1 - y0;
+    if (dy == 0) {
+        SetParticle(x0, y0, {particle});
+        return;
+    }
+    int dx = x1 - x0;
+    int dir = dx < 0 ? -1 : 1;
+    dx *= 2*dir;
+
+
+    int p = dx - dy;
+    for (int i = 0; i < dy+1; i++)
+    {
+        if (GetParticlePtr(x0, y0 + i)->props & (u16)Particle::Props::NonDestruct)
+            continue;
+        SetParticle(x0, y0 + i, particle);
+        if (p >= 0) {
+            x0 += dir;
+            p -= 2*dy;
+        }
+        p += dx;
+    }
 }
 
 void SimStepperProcessing(SimStepper* simStepper)
@@ -333,16 +418,13 @@ void OneFrameProcessing()
 }
 
 // Fills in a particle buffer and also draws to "buffer of changes"
-void HandleMouseButtonInput(Vector2i _currMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange)
+void HandleMouseButtonInput(Vector2i _currMousePos, Vector2i _prevMousePos, MouseButton _mouseBttn, const Brush& _brush, RenderTexture2D* _canvasChange)
 {
     if (_currMousePos.x <= 0 || _currMousePos.x >= canvasWidth ||
         _currMousePos.y <= 0 || _currMousePos.y >= canvasHeight)
     {
         return;
     }
-    static Vector2 sPrevMousePosition{ GetMousePosition() };
-    sPrevMousePosition.x = _currMousePos.x;
-    sPrevMousePosition.y = _currMousePos.y;
 
     Particle::Type newParticleType;
     switch (_mouseBttn)
@@ -353,45 +435,51 @@ void HandleMouseButtonInput(Vector2i _currMousePos, MouseButton _mouseBttn, cons
             break;
     }
 
-    int pathSize{ 32 };
-    //for (int i = 0; i < pathSize; i++)
-    {
-        //float lerpT{ (float)i / pathSize };
-        // Vector2i center{ 
-        //     Lerp(sPrevMousePosition.x, _currMousePos.x, lerpT),
-        //     Lerp(sPrevMousePosition.y, _currMousePos.y, lerpT)
-        // };
 
-        /* How area works:
+    /* How area works:
+        x h         x = mouse pos
+        ^           y = begin of area from bottom
+        |           w = width from x
+        |           h = mouse pos + 1 (+1 for some reason)
+        y---->w
             Clamp in case if mouse is out of window or close to the edges
             Also considering bedrock border
-            x h         x = mouse pos
-            ^           y = begin of area from bottom
-            |           w = width from x
-            |           h = mouse pos + 1 (+1 for some reason)
-            y---->w
-        */
+    */
 
-        Rectangle area {
-            Clamp(_currMousePos.x, 1, gridSize.x - 1),
-            Clamp(_currMousePos.y - _brush.mSize + 1, 1, gridSize.y - 1),
-            Clamp(_currMousePos.x + _brush.mSize, 1, gridSize.x - 1),
-            Clamp(_currMousePos.y + 1, 1, gridSize.y - 1),
-        };
+   Rectangle prevArea {
+        Clamp(_prevMousePos.x, 1, gridSize.x - 1),
+        Clamp(_prevMousePos.y - _brush.mSize + 1, 1, gridSize.y - 1),
+        Clamp(_prevMousePos.x + _brush.mSize, 1, gridSize.x - 1),
+        Clamp(_prevMousePos.y + 1, 1, gridSize.y - 1),
+    };
 
-        // Update particle buffer and draw to "buffer of changes"
-        for (int x = area.x; x < area.width; x++)
+    Rectangle area {
+        Clamp(_currMousePos.x, 1, gridSize.x - 1),
+        Clamp(_currMousePos.y - _brush.mSize + 1, 1, gridSize.y - 1),
+        Clamp(_currMousePos.x + _brush.mSize, 1, gridSize.x - 1),
+        Clamp(_currMousePos.y + 1, 1, gridSize.y - 1),
+    };
+
+    // Update particle buffer and draw to "buffer of changes"
+    int px = prevArea.x;
+    int py = prevArea.y;
+    int x = area.x;
+    int y = area.y;
+    while (x < area.width)
+    {
+        py = prevArea.y;
+        y = area.y;
+        while (y < area.height)
         {
-            for (int y = area.y; y < area.height; y++)
-            {
-                auto particleTarget{ GetParticlePtr(x, y) };
-                if (particleTarget->props & (u16)Particle::Props::NonDestruct)
-                {
-                    continue;
-                }
-                SetParticle(x, y, { newParticleType });
-            }
+            DrawLine(px, py, x, y, newParticleType);
+
+            ++y;
+            if (py < prevArea.height-1)
+                ++py;
         }
+        ++x;
+        if (px < prevArea.width-1)
+            ++px;
     }
 }
 
