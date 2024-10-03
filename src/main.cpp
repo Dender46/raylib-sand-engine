@@ -238,7 +238,7 @@ int main(void)
                 {
                     char textBuffer[256];
                     Particle::GetDescription(textBuffer, 256, mousePosGrid, GetParticlePtr(mousePosGrid.x, mousePosGrid.y));
-                    RL_Tooltip(mousePos, textBuffer, { screenWidth, screenHeight });
+                    RLExt::Tooltip(mousePos, textBuffer, { screenWidth, screenHeight });
                 }
             }
 
