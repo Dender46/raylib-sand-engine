@@ -43,12 +43,12 @@ typedef double f64;
     #include <x86intrin.h>
     #include <sys/time.h>
     
-    u64 GetOSTimerFreq(void)
+    u64 Profiller::GetOSTimerFreq(void)
     {
         return 1000000;
     }
 
-    u64 ReadOSTimer(void)
+    u64 Profiller::ReadOSTimer(void)
     {
         timeval Value;
         gettimeofday(&Value, 0);

@@ -20,6 +20,7 @@
                 "OpenGL",
                 "${workspaceFolder}/vendor/raylib/lib/libraylib.a",
                 "${workspaceFolder}/src/main.cpp",
+                "${workspaceFolder}/src/profiler/profiller.cpp",
                 "-I",
                 "${workspaceFolder}/vendor/raylib/include",
                 "-o",
