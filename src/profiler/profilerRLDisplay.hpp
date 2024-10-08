@@ -93,7 +93,7 @@ inline void DrawProfilerResults(int screenWidth, int screenHeight, u64 _totalCyc
         for (u32 i = 0; i < tableCountRow-1; i++)
         {
             widthSum = tableLeftPadding;
-            u32 height{ (i+1) * (fontSize*heightMultiplier) };
+            f32 height{ (i+1) * (fontSize * heightMultiplier) };
             i32 colIndex{ -1 };
             DrawText(profilerReports[i].mAnchor.label, widthSum, height, fontSize, BLACK);
             widthSum += tableColumns[++colIndex].mWidth + elementWidthPadding;
@@ -130,10 +130,7 @@ inline void DrawProfilerResults(int screenWidth, int screenHeight, u64 _totalCyc
 
 #else // PROFILLER
 
-inline void DrawProfilerResults(int screenWidth, int screenHeight, u64 _totalCyclesPassed)
-{
-    
-}
+#define DrawProfilerResults(...)
 
 #endif // PROFILLER
 

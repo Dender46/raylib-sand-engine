@@ -39,29 +39,9 @@
             }
         },
         {
-            "type": "cppbuild",
+            "type": "process",
             "label": "WIN: g++.exe build project",
-            "command": "g++",
-            "args": [
-                "-std=c++20",
-                "-fdiagnostics-color=always",
-                "-g",
-                "${workspaceFolder}\\src\\profiler\\profiller.cpp",
-                "${workspaceFolder}\\src\\main.cpp",
-                "-o",
-                "${workspaceFolder}\\build\\main.exe",
-                "-I${workspaceFolder}\\vendor\\raylib\\include",
-                "-I${workspaceFolder}\\vendor\\box2d\\include",
-                "-L${workspaceFolder}\\vendor\\raylib\\lib",
-                "-L${workspaceFolder}\\vendor\\box2d\\lib",
-                "-l:libraylib.a",
-                "-l:box2d.lib",
-                "-lgdi32",
-                "-lwinmm",
-            ],
-            "options": {
-                "cwd": "${fileDirname}"
-            },
+            "command": "scripts\\gcc.bat",
             "problemMatcher": [
                 "$gcc"
             ],

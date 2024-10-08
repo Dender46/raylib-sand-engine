@@ -3,7 +3,7 @@ setlocal
 
 cd /D "%~dp0"
 
-pushd build
+pushd ..\build
 
 set FLAGS= /nologo /EHsc /Zi /MD /std:c++20
 set COMPILATION_FILES= ..\src\main.cpp ..\src\profiler\profiller.cpp

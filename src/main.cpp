@@ -296,7 +296,6 @@ int main(void)
     return 0;
 }
 
-// void DrawLine(int x0, int y0, int x1, int y1, bool (*func)(int, int, Particle::Type), Particle::Type pType)
 void DrawLine(int x0, int y0, int x1, int y1, Particle::Type p)
 {
     if (abs(x1-x0) > abs(y1-y0))
@@ -369,7 +368,7 @@ void SimStepperProcessing(SimStepper* simStepper)
 {
     simStepper->mStepNextParticles--;
 
-    // First process even columns, than swith to uneven
+    // First process even columns, than switch to uneven
     auto& Px = simStepper->x;
     auto& Py = simStepper->y;
     auto& particle{ *GetParticlePtr(Px, Py) };
@@ -390,7 +389,7 @@ void SimStepperProcessing(SimStepper* simStepper)
 
 void OneFrameProcessing()
 {
-    // First process even columns, than swith to uneven
+    // First process even columns, than switch to uneven
     Particle* column{ particles };
     for (u16 x{0}; x < gridSize.x; x += 2)
     {

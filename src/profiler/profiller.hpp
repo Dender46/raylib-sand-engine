@@ -24,9 +24,56 @@ typedef int64_t i64;
 typedef float f32;
 typedef double f64;
 
-u64 GetOSTimerFreq(void);
-u64 ReadOSTimer(void);
-u64 ReadCPUTimer(void);
+#if _WIN32
+    #include <intrin.h>
+
+    // Instead of including windows.h and psapi.h and clashing with raylib
+    // we declared functions and types here
+    typedef union _LARGE_INTEGER {
+        long long QuadPart;
+    } LARGE_INTEGER;
+    extern "C"
+    {
+        int __stdcall QueryPerformanceCounter(LARGE_INTEGER *lpPerformanceCount);
+        int __stdcall QueryPerformanceFrequency(LARGE_INTEGER *lpFrequency);
+    }
+
+    inline u64 GetOSTimerFreq(void)
+    {
+        LARGE_INTEGER Freq;
+        QueryPerformanceFrequency(&Freq);
+        return Freq.QuadPart;
+    }
+
+    inline u64 ReadOSTimer(void)
+    {
+        LARGE_INTEGER Value;
+        QueryPerformanceCounter(&Value);
+        return Value.QuadPart;
+    }
+#else // _WIN32
+    #include <x86intrin.h>
+    #include <sys/time.h>
+
+    inline u64 GetOSTimerFreq(void)
+    {
+        return 1000000;
+    }
+
+    inline u64 ReadOSTimer(void)
+    {
+        timeval Value;
+        gettimeofday(&Value, 0);
+
+        u64 Result{ GetOSTimerFreq()*(u64)Value.tv_sec + (u64)Value.tv_usec };
+        return Result;
+    }
+#endif // _WIN32
+
+inline u64 ReadCPUTimer(void)
+{
+    return __rdtsc();
+}
 
 inline u64 EstimateCPUTimerFreq(void)
 {
