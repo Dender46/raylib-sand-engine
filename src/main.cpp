@@ -13,7 +13,8 @@
 #include "brush.hpp"
 #include "simStepper.hpp"
 #include "rl_tooltip.hpp"
-#define PROFILLER 0
+#define PROFILLER 1
+#define PROFILLER_FRAME_LIMIT 180
 #include "profiler/profiller.hpp"
 #include "profiler/profilerRLDisplay.hpp"
 
@@ -176,17 +177,9 @@ int main(void)
 #endif
 
     Profiller::globalProfiller.BeginProfilling(" ::::: PROFILLER ::::: ");
-    u32 profillingFramesLimit{ 100 };
-    u32 profillingFramesCount{ 1 };
 
-    while (!WindowShouldClose())
+    while ( !(WindowShouldClose() || Profiller::globalProfiller.FrameLimitReached()) )
     {
-#if PROFILLER
-        if (profillingFramesCount++ > profillingFramesLimit)
-        {
-            break;
-        }
-#endif // PROFILLER
         TIME_FUNCTION;
 
         Vector2 mousePos{ GetMousePosition() };
@@ -286,6 +279,7 @@ int main(void)
         }
         EndDrawing();
         }
+        Profiller::globalProfiller.EndFrame();
     }
 
     u64 totalCyclesPassed{ Profiller::globalProfiller.EndProfilling() };

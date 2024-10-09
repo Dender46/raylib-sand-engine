@@ -119,12 +119,22 @@ struct ProfillingAnchor
     u64 hitCount;
     const char* label;
 };
-inline constexpr auto b{ sizeof(ProfillingAnchor)};
-inline constexpr auto a{ sizeof(ProfillingAnchor) * (4096) / 1024.0f * (2000) };
-inline ProfillingAnchor globalProfillingAnchors[4096];
-inline u32 globalProfillerAnchorParent;
 
+inline constexpr u32 globalProfillingAnchorsCount{ 20 };
+inline ProfillingAnchor globalProfillingAnchors[globalProfillingAnchorsCount];
+inline u32 globalProfillerAnchorParent;
 inline u32 nextEmptyAnchorIndex{ 1 };
+
+// -1   do not use frame limit
+// >=1  use frame limit
+#if !defined(PROFILLER_FRAME_LIMIT) || PROFILLER_FRAME_LIMIT <= 0
+#define PROFILLER_FRAME_LIMIT -1
+inline ProfillingAnchor* globalProfillingAnchorsFrames{ new ProfillingAnchor[1] };
+#else
+inline ProfillingAnchor* globalProfillingAnchorsFrames{ new ProfillingAnchor[PROFILLER_FRAME_LIMIT * globalProfillingAnchorsCount] };
+#endif
+
+inline u64 globalProfillingAnchorsFramesIndex{ 0 };
 
 struct ProfillingBlock
 {
@@ -165,18 +175,7 @@ struct ProfillingBlock
     u64 mOldElapsedInclusiveTSC;
 };
 
-struct AnchorTimingsReport
-{
-    ProfillingAnchor mAnchor;
-    u64 mElapsedTSC{ 0 };
-    f64 mElapsedTimeInS{ 0 };
-    f64 mPercentage{ 0 };
-    f64 mPercentageWithChildren{ 0 };
-    f64 mProcessedMegabytes{ 0 };
-    f64 mGigabytesPerSecond{ 0 };
-};
-
-// ANCHOR_LAST_INDEX_DEFINITION macro should be written at the end of main file
+// NOTE: ANCHOR_LAST_INDEX_DEFINITION macro should be written at the end of main file
 extern u32 GetLastAnchorIndex();
 
 #if 0
@@ -192,6 +191,17 @@ extern u32 GetLastAnchorIndex();
         const Profiller::ProfillingBlock CONCAT2(timeFunction, __LINE__)(blockName, byteCount, __COUNTER__ + 1)
     #define ANCHOR_LAST_INDEX_DEFINITION u32 Profiller::GetLastAnchorIndex() { return __COUNTER__; }
 #endif
+
+struct AnchorTimingsReport
+{
+    ProfillingAnchor mAnchor;
+    u64 mElapsedTSC{ 0 };
+    f64 mElapsedTimeInS{ 0 };
+    f64 mPercentage{ 0 };
+    f64 mPercentageWithChildren{ 0 };
+    f64 mProcessedMegabytes{ 0 };
+    f64 mGigabytesPerSecond{ 0 };
+};
 
 inline std::vector<AnchorTimingsReport> GetAnchorsTimings(u64 _totalCyclesPassed)
 {
@@ -254,7 +264,7 @@ inline std::vector<AnchorTimingsReport> GetAnchorsTimings(u64 _totalCyclesPassed
 inline void PrintAnchorsTimings(const char* _outputPrefix, u64 _totalCyclesPassed)
 {
     f64 cpuFreq{ (f64)EstimateCPUTimerFreq() };
-    for (size_t i = 0; i < 4096; i++)
+    for (size_t i = 0; i < globalProfillingAnchorsCount; i++)
     {
         const auto& a{ globalProfillingAnchors[i] };
         if (a.hitCount > 0)
@@ -314,6 +324,26 @@ public:
         mStartTSC = ReadCPUTimer();
     }
 
+    void EndFrame()
+    {
+        if (mFrameLimit > 0)
+        {
+            u64 anchorIndex{ 0 };
+            while (anchorIndex < globalProfillingAnchorsCount)
+            {
+                globalProfillingAnchorsFrames[globalProfillingAnchorsFramesIndex] = globalProfillingAnchors[anchorIndex];
+                globalProfillingAnchorsFramesIndex++;
+                anchorIndex++;
+            }
+            --mFrameLimit;
+        }
+    }
+
+    bool FrameLimitReached()
+    {
+        return mFrameLimit == 0;
+    }
+
     u64 EndProfilling()
     {
         mEndTSC = ReadCPUTimer();
@@ -333,6 +363,8 @@ public:
     u64 mStartTSC;
     u64 mEndTSC;
     u64 mCpuFreq;
+
+    i64 mFrameLimit{ PROFILLER_FRAME_LIMIT };
 };
 
 inline Profiller globalProfiller;

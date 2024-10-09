@@ -7,7 +7,7 @@ struct SimStepper
 {
     void Hotbar(float parentW, float parentH);
 
-    bool mIsPaused{true};
+    bool mIsPaused{false};
     u32 mStepNextParticles{};
     u32 mStepNextFrame{};
     u16 x{};
